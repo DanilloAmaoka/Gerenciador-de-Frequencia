@@ -16,9 +16,9 @@
 }
 
 .card-projeto {
-  background-color: white;
-  padding: 40px;
-  border-radius: 15px;
+  background-color: rgb(245, 245, 245);
+  padding: 10px;
+  border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   
   width: 90%;
@@ -27,4 +27,5 @@
   
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
