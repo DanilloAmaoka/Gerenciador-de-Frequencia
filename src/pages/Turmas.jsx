@@ -6,17 +6,21 @@ function Turmas() {
     const navigate = useNavigate();
 
     const turmas = [
-    { id: 1, nome: '9º Ano A', periodo: 'Manhã' },
+    { id: 1, nome: '4° A', periodo: 'Manhã' },
     { id: 2, nome: '1º Ano Médio', periodo: 'Tarde' },
     { id: 3, nome: '2º Ano Médio', periodo: 'Noite' },
     { id: 4, nome: '2º Ano Médio', periodo: 'Noite' },
     { id: 5, nome: '2º Ano Médio', periodo: 'Noite' },
     { id: 6, nome: '2º Ano Médio', periodo: 'Noite' },
+    { id: 7, nome: '2º Ano Médio', periodo: 'Noite' },
   ];
 
     return (
         <div className="card-projeto">
-            <h1>Turmas</h1>
+            <div style={{display: 'flex', flexDirection: 'row', alignItems: 'baseline', gap: '10px'}}>
+                <h1>Turmas |</h1>
+                <h3>{turmas.length}</h3>
+            </div>
             <div style={containerListaStyle}>
                 {turmas.length > 0 ? (
                     turmas.map((turma) => (
@@ -25,11 +29,13 @@ function Turmas() {
                             style={turmaStyle}
                             className='button-turma'
                             >
-                            <div>
-                                <strong>{turma.nome}</strong>
-                                <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>
-                                    {turma.periodo}
-                                </p>
+                            <div style={{height: '30px', alignContent: 'center'}}>
+                                <div style={{display: 'flex', flexDirection: "row"}}>
+                                    <p style={{fontSize: '20px'}}><strong>{turma.nome}  |</strong></p>
+                                    <p style={{ margin: 3.5, fontSize: '14px', color: '#666'}}> 
+                                        {turma.periodo} 
+                                    </p>
+                                </div>   
                             </div>
                         </button>
                     ))
@@ -39,6 +45,11 @@ function Turmas() {
             </div>
             <button 
                 style={buttonStyle}
+                className='button-padrao'
+                onClick={() => navigate('/inicio')}
+                >Adicionar uma Nova Turma</button>
+            <button 
+                style={button_voltarStyle}
                 className='button-padrao'
                 onClick={() => navigate('/inicio')}
                 >Voltar</button>
@@ -79,6 +90,18 @@ const buttonStyle = {
     width: '100%',
     cursor: 'pointer',
     transition: 'all 0.2s ease-in-out'
-};
+}
+
+const button_voltarStyle = {
+    padding: '12px',
+    borderRadius: '8px',
+    backgroundColor: '#77b2f9',
+    color: 'black',
+    fontSize: '14px',
+    fontWeight: '600',
+    width: '100%',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease-in-out'
+}
 
 export default Turmas;
