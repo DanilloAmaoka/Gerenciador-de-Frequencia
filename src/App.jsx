@@ -9,35 +9,37 @@ function AppRoutes() {
   return (
     <div className='fundo-geral'>
       <Router>
-        <Routes>
-          <Route path="/" element={<Login />} />
-          <Route 
-            path="/inicio" 
-            element={
-              <ProtectedRoute>
-                <Inicio />
-              </ProtectedRoute>
-            } 
-          />
+        <div className='card-projeto'>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route 
+              path="/inicio" 
+              element={
+                <ProtectedRoute>
+                  <Inicio />
+                </ProtectedRoute>
+              } 
+            />
 
-          <Route 
-            path="/turmas" 
-            element={
-              <ProtectedRoute>
-                <Turmas />
-              </ProtectedRoute>
-            } 
-          />
+            <Route 
+              path="/turmas" 
+              element={
+                <ProtectedRoute>
+                  <Turmas />
+                </ProtectedRoute>
+              } 
+            />
 
-          <Route 
-            path="/criar-turma" 
-            element={
-              <ProtectedRoute>
-                <Criar_Turma />
-              </ProtectedRoute>
-            } 
-          />
+            <Route 
+              path="/criar-turma" 
+              element={
+                <ProtectedRoute>
+                  <Criar_Turma />
+                </ProtectedRoute>
+              } 
+            />
         </Routes>
+        </div>
       </Router>
     </div>
     

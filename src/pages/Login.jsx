@@ -28,7 +28,7 @@ function Login() {
 
 
     return (
-    <form className="card-projeto" onSubmit={handleLogin}>
+    <form onSubmit={handleLogin}>
         <h1>Gerenciador de Frequência</h1>
         
         
