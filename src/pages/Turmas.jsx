@@ -1,47 +1,39 @@
 import { useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import ConteudoAdicional from '../components/ConteudoAdicional';
+import { useEffect } from 'react';
 
 function Turmas() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
+    const [conteudoTurma, setconteudoTurma] = useState(false);
+    const [conteudoTurma, setconteudoTurma] = useState("")
+    
+    useEffect(() => {
+        if (conteudoTurma === "1-A") {
 
-    const turmas = [
-    { id: 1, nome: '4° A', periodo: 'Manhã' },
-    { id: 2, nome: '4° B', periodo: 'Tarde' },
-    { id: 3, nome: '3° A', periodo: 'Noite' },
-    { id: 4, nome: '3° B', periodo: 'Noite' },
-    { id: 5, nome: '2º Ano Médio', periodo: 'Noite' },
-    { id: 6, nome: '2º Ano Médio', periodo: 'Noite' },
-    { id: 7, nome: '2º Ano Médio', periodo: 'Noite' },
-  ];
+        }
+
+    }, [conteudoTurma])
 
     return (
-        <div style={{display: 'flex', flexDirection: 'column', height: 'auto', gap: '5px'}}>
-            <div style={{display: 'flex', flexDirection: 'row', alignItems: 'baseline', gap: '10px'}}>
-                <h1>Turmas Registradas</h1>
-            </div>
-            <div style={containerListaStyle}>
-                {turmas.length > 0 ? (
-                    turmas.map((turma) => (
-                        <button 
-                            key={turma.id} 
-                            style={turmaStyle}
-                            className='button-turma'
-                            >
-                            <div style={{height: '30px', alignContent: 'center'}}>
-                                <div style={{display: 'flex', flexDirection: "row"}}>
-                                    <p style={{fontSize: '20px'}}><strong>{turma.nome}  |</strong></p>
-                                    <p style={{ margin: 3.5, fontSize: '14px', color: '#666'}}> 
-                                        {turma.periodo} 
-                                    </p>
-                                </div>   
-                            </div>
-                        </button>
-                    ))
-                ) : (
-                <p>Nenhuma turma cadastrada.</p>
-                )}
+        <div style={{display: 'flex', flexDirection: 'column', height: '500px', width: '900px', gap: '5px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', height: '490px', width: '890px', gap: '5px'}}>
+                <div style={style.containerTurmas}>
+                    <h2>Turmas</h2>
+                    <button style={style.turmaButton} className='button-padrao'
+                        onClick={() => setconteudoTurma("1-A")}
+                    >
+                        <p style={{fontSize: '18px'}}><strong>1° Ano A</strong></p>
+                    </button>
+                    <button style={style.turmaButton} className='button-padrao'>
+                        <p style={{fontSize: '18px'}}><strong>1° Ano B</strong></p>
+                    </button>
+                </div>
+                <div style={style.containerConteudoTurmas}>
+                    <h1>Alunos</h1>
+                </div>
             </div>
             <button 
                 style={button_voltarStyle}
@@ -52,16 +44,41 @@ function Turmas() {
     );
 }
 
-const containerListaStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-    padding: '20px',
-    height: '500px',
-    overflowY: 'auto',
-    backgroundColor: '#f5f5f5',
-    borderRadius: '8px',
-    border: '1px solid #ddd'
+const style = {
+    containerTurmas: {
+        display: 'flex',
+        flexDirection: 'column', 
+        height: '100%', 
+        width: '200px', 
+        gap: '5px', 
+        padding: '10px', 
+        border: '1px solid #ddd',
+        borderRadius: '15px'
+    },
+
+    containerConteudoTurmas: {
+        display: 'flex',
+        flexDirection: 'column', 
+        height: '100%', 
+        width: '600px', 
+        gap: '5px', 
+        padding: '10px', 
+        border: '1px solid #ddd',
+        borderRadius: '15px'
+    },
+
+    turmaButton: {
+        display: 'flex',
+        alignItems: 'center',
+        padding: '15px',
+        backgroundColor: '#fff',
+        borderRadius: '5px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        cursor: 'pointer',
+        display: 'flex',
+        flexDirection: 'row',
+        gap: '10px'
+    }
 }
 
 const turmaStyle = {
