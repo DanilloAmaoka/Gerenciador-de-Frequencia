@@ -32,7 +32,7 @@
 
 /*Animação Mensagem erro - Login*/
 .mensagem {
-  margin-top: 10px;
+  margin-top: 1px;
   padding: 8px;
   border-radius: 6px;
   font-size: 14px;
@@ -68,19 +68,35 @@
 }
 /*Fim animação*/
 
-button {
+.button-padrao {
   cursor: pointer;
   transition: all 0.2s ease-in-out; 
   outline: none;
 }
 
-button:hover {
+.button-padrao:hover {
   filter: brightness(0.9); 
   transform: translateY(-1px); 
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
 }
 
-button:active {
+.button-padrao:active {
+  transform: translateY(0); 
+  filter: brightness(0.8); 
+}
+
+.button-turma {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out; 
+  outline: none;
+}
+
+.button-turma:hover {
+  transform: translateY(-4px); 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); 
+}
+
+.button-turma:active {
   transform: translateY(0); 
   filter: brightness(0.8); 
 }

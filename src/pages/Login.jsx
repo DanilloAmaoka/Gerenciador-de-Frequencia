@@ -8,6 +8,8 @@ function Login() {
     const [senha, setSenha] = useState('');
     const [mensagem, setMensagem] = useState("");
 
+    const versao = "v0.1.0-beta"
+
     const handleLogin = (e) => {
         if (e) e.preventDefault();
         const EMAIL_MESTRE = "oi@gmail.com";
@@ -27,8 +29,9 @@ function Login() {
 
     return (
     <form className="card-projeto" onSubmit={handleLogin}>
-
         <h1>Gerenciador de Frequência</h1>
+        
+        
         <h3>Login</h3>
         <input 
             type='email'
@@ -48,27 +51,28 @@ function Login() {
             onChange={(e) => setSenha(e.target.value)}
         ></input>
 
-        <button 
-            type='submit' 
-            style={buttonStyle}
-            className='button'
-            >
-            Entrar
-        </button>
-
         {mensagem && (
             <p className={`mensagem ${mensagem.includes("sucesso") ? "sucesso" : "erro"}`}>
                 {mensagem === "sucesso" ? "Login realizado! Entrando..." : mensagem}
             </p>
         )}
-        
+
+        <button 
+            type='submit' 
+            style={buttonStyle}
+            className='button-padrao'
+            >
+            Entrar
+        </button>
+
+        {versao}
     </form>
 
     );
 }
 
 const inputStyle = {
-    padding: '12px',
+    padding: '10px',
     borderRadius: '8px',
     border: '1px solid #ccc',
     fontSize: '16px'
@@ -84,7 +88,6 @@ const buttonStyle = {
     fontWeight: '600',
     transition: 'all 0.3s ease',
     boxShadow: '0 4px 6px rgba(0, 123, 255, 0.2)',
-    marginTop: '10px'
 };
 
 export default Login;
