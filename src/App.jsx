@@ -1,11 +1,27 @@
-import AppRoutes from './routes/AppRoutes';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import Login from './pages/Login';
+import Inicio from './pages/Inicio';
+import { ProtectedRoute } from './components/ProtectedRoute'; // Importe aqui
 
-function App() {
+function AppRoutes() {
   return (
     <div className='fundo-geral'>
-       <AppRoutes />
+      <Router>
+        <Routes>
+          <Route path="/" element={<Login />} />
+          <Route 
+            path="/inicio" 
+            element={
+              <ProtectedRoute>
+                <Inicio />
+              </ProtectedRoute>
+            } 
+          />
+        </Routes>
+      </Router>
     </div>
+    
   );
 }
 
-export default App;
+export default AppRoutes;
