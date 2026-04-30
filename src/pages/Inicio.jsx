@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import icone01 from '../assets/icon1.png'
+import icone02 from '../assets/icon2.png'
 import { getInfoData } from '../utils/data';
 
 function Inicio() {
@@ -14,13 +15,15 @@ function Inicio() {
                 style={buttonStyle}
                 className='button'>
                 <img src={icone01} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
-                <span style={{color: 'black'}}>Adicionar Faltas do Dia <strong>{diaSemana}</strong></span>
+                <span style={{color: 'black'}}>Adicionar Faltas do Dia (<strong>{diaSemana}</strong>)</span>
+            </button>
+            <button
+                style={buttonStyle}
+                className='button'>
+                <img src={icone02} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
+                <span style={{color: 'black'}}>Gerenciar Turmas Registradas</span>
             </button>
 
-        <button
-            style={buttonStyle}
-            className='button'
-        >Gerenciar Turmas Cadastradas</button>
         </div>
     );
 }
