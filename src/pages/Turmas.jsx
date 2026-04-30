@@ -46,7 +46,7 @@ function Turmas() {
             <button 
                 style={buttonStyle}
                 className='button-padrao'
-                onClick={() => navigate('/inicio')}
+                onClick={() => navigate('/criar-turma')}
                 >Adicionar uma Nova Turma</button>
             <button 
                 style={button_voltarStyle}
