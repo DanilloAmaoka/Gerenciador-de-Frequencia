@@ -11,11 +11,4 @@ function Inicio() {
   );
 }
 
-const inputStyle = {
-    padding: '12px',
-    borderRadius: '8px',
-    border: '1px solid #ccc',
-    fontSize: '16px'
-};
-
 export default Inicio;
