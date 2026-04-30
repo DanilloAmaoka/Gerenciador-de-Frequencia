@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
+import { motion } from 'framer-motion';
 
 function Turmas() {
     const { diaSemana, dataFormatada } = getInfoData();
@@ -7,19 +8,18 @@ function Turmas() {
 
     const turmas = [
     { id: 1, nome: '4° A', periodo: 'Manhã' },
-    { id: 2, nome: '1º Ano Médio', periodo: 'Tarde' },
-    { id: 3, nome: '2º Ano Médio', periodo: 'Noite' },
-    { id: 4, nome: '2º Ano Médio', periodo: 'Noite' },
+    { id: 2, nome: '4° B', periodo: 'Tarde' },
+    { id: 3, nome: '3° A', periodo: 'Noite' },
+    { id: 4, nome: '3° B', periodo: 'Noite' },
     { id: 5, nome: '2º Ano Médio', periodo: 'Noite' },
     { id: 6, nome: '2º Ano Médio', periodo: 'Noite' },
     { id: 7, nome: '2º Ano Médio', periodo: 'Noite' },
   ];
 
     return (
-        <div className="card-projeto">
+        <div style={{display: 'flex', flexDirection: 'column', height: 'auto', gap: '5px'}}>
             <div style={{display: 'flex', flexDirection: 'row', alignItems: 'baseline', gap: '10px'}}>
-                <h1>Turmas |</h1>
-                <h3>{turmas.length}</h3>
+                <h1>Turmas Registradas</h1>
             </div>
             <div style={containerListaStyle}>
                 {turmas.length > 0 ? (
@@ -44,11 +44,6 @@ function Turmas() {
                 )}
             </div>
             <button 
-                style={buttonStyle}
-                className='button-padrao'
-                onClick={() => navigate('/criar-turma')}
-                >Adicionar uma Nova Turma</button>
-            <button 
                 style={button_voltarStyle}
                 className='button-padrao'
                 onClick={() => navigate('/inicio')}
@@ -62,7 +57,7 @@ const containerListaStyle = {
     flexDirection: 'column',
     gap: '15px',
     padding: '20px',
-    height: '400px',
+    height: '500px',
     overflowY: 'auto',
     backgroundColor: '#f5f5f5',
     borderRadius: '8px',
@@ -83,7 +78,7 @@ const turmaStyle = {
 const buttonStyle = {
     padding: '12px',
     borderRadius: '8px',
-    backgroundColor: '#cbe0f9',
+    backgroundColor: '#ffffff',
     color: 'black',
     fontSize: '14px',
     fontWeight: '600',
@@ -95,7 +90,7 @@ const buttonStyle = {
 const button_voltarStyle = {
     padding: '12px',
     borderRadius: '8px',
-    backgroundColor: '#77b2f9',
+    backgroundColor: '#cfe1f7',
     color: 'black',
     fontSize: '14px',
     fontWeight: '600',

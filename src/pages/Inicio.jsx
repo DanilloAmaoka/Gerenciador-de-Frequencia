@@ -8,7 +8,7 @@ function Inicio() {
     const navigate = useNavigate();
 
     return (
-        <div className="card-projeto">
+        <div style={{display: 'flex', flexDirection: 'column', height: 'auto', gap: '5px'}}>
             <h1>Bem-vindo!</h1>
             <h3>Menu</h3>
             <button
