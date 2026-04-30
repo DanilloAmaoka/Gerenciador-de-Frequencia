@@ -14,6 +14,7 @@ function Login() {
         const SENHA_MESTRE = "123";
 
         if (email === EMAIL_MESTRE && senha === SENHA_MESTRE) {
+            localStorage.setItem("logado", "true");
             setMensagem("sucesso")
             setTimeout(() => {
                 navigate('/inicio'); 
