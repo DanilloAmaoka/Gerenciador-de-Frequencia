@@ -13,15 +13,17 @@ function Inicio() {
             <h3>Menu</h3>
             <button
                 style={buttonStyle}
-                className='button'>
+                className='button-padrao'>
                 <img src={icone01} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
                 <span style={{color: 'black'}}>Adicionar Faltas do Dia (<strong>{diaSemana}</strong>)</span>
             </button>
             <button
                 style={buttonStyle}
-                className='button'>
+                className='button-padrao'
+                onClick={() => navigate('/turmas')}
+                >
                 <img src={icone02} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
-                <span style={{color: 'black'}}>Gerenciar Turmas Registradas</span>
+                <span>Gerenciar Turmas Registradas</span>
             </button>
 
         </div>
@@ -37,7 +39,7 @@ const buttonStyle = {
     padding: '12px',
     borderRadius: '8px',
     backgroundColor: '#cbe0f9',
-    color: 'white',
+    color: 'black',
     fontSize: '16px',
     fontWeight: '600',
     width: '100%',

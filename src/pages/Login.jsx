@@ -51,7 +51,7 @@ function Login() {
         <button 
             type='submit' 
             style={buttonStyle}
-            className='button'
+            className='button-padrao'
             >
             Entrar
         </button>

@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Inicio from './pages/Inicio';
-import { ProtectedRoute } from './components/ProtectedRoute'; // Importe aqui
+import Turmas from './pages/Turmas'
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 function AppRoutes() {
   return (
@@ -14,6 +15,14 @@ function AppRoutes() {
             element={
               <ProtectedRoute>
                 <Inicio />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/turmas" 
+            element={
+              <ProtectedRoute>
+                <Turmas />
               </ProtectedRoute>
             } 
           />
