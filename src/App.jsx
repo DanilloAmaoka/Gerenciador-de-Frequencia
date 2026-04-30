@@ -29,15 +29,6 @@ function AppRoutes() {
                 </ProtectedRoute>
               } 
             />
-
-            <Route 
-              path="/criar-turma" 
-              element={
-                <ProtectedRoute>
-                  <Criar_Turma />
-                </ProtectedRoute>
-              } 
-            />
         </Routes>
         </div>
       </Router>
