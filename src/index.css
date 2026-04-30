@@ -17,7 +17,7 @@
 
 .card-projeto {
   background-color: rgb(245, 245, 245);
-  padding: 10px;
+  padding: 15px;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   
@@ -27,7 +27,7 @@
   
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 9px;
 }
 
 /*Animação Mensagem erro - Login*/

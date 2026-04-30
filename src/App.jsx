@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Inicio from './pages/Inicio';
-import Turmas from './pages/Turmas'
+import Turmas from './pages/Turmas';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import Criar_Turma from './pages/Criar_Turma';
 
 function AppRoutes() {
   return (
@@ -18,11 +19,21 @@ function AppRoutes() {
               </ProtectedRoute>
             } 
           />
+
           <Route 
             path="/turmas" 
             element={
               <ProtectedRoute>
                 <Turmas />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/criar-turma" 
+            element={
+              <ProtectedRoute>
+                <Criar_Turma />
               </ProtectedRoute>
             } 
           />
