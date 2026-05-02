@@ -20,9 +20,10 @@
   padding: 15px;
   border-radius: 12px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  width: 90%;
-  max-width: 920px;    
+  width: auto;
+  max-width: 980px;    
   display: flex;
+  height: auto;
   flex-direction: column;
   overflow: hidden; 
 
@@ -73,6 +74,8 @@
   cursor: pointer;
   transition: all 0.2s ease-in-out; 
   outline: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
 }
 
 .button-padrao:hover {
@@ -86,10 +89,38 @@
   filter: brightness(0.8); 
 }
 
+.button-deletarAluno {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out; 
+  outline: none;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: transparent;
+}
+
+.button-deletarAluno:hover {
+  transform: translateY(-1px); 
+  background-color: #fcc9c965; 
+}
+
+.button-deletarAluno:active {
+  transform: translateY(0); 
+  filter: brightness(0.8); 
+}
+
 .button-turma {
   cursor: pointer;
   transition: all 0.2s ease-in-out; 
   outline: none;
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
 }
 
 .button-turma:hover {
@@ -98,6 +129,8 @@
 }
 
 .button-turma:active {
+  background-color: #006ebc;
+  border: 2px solid #2196f3;
   transform: translateY(0); 
   filter: brightness(0.8); 
 }

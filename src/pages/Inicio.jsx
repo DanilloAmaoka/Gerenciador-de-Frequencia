@@ -8,13 +8,13 @@ function Inicio() {
     const navigate = useNavigate();
 
     return (
-        <div style={{display: 'flex', flexDirection: 'column', height: 'auto', gap: '5px'}}>
+        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: 'auto', gap: '5px', width: '500px'}}>
             <h1>Bem-vindo!</h1>
             <h3>Menu</h3>
             <button
                 style={buttonStyle}
                 className='button-padrao'>
-                <img src={icone01} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
+                <img src={icone02} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
                 <span style={{color: 'black'}}>Adicionar Faltas do Dia (<strong>{diaSemana}</strong>)</span>
             </button>
             <button
@@ -22,7 +22,7 @@ function Inicio() {
                 className='button-padrao'
                 onClick={() => navigate('/turmas')}
                 >
-                <img src={icone02} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
+                <img src={icone01} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
                 <span>Gerenciar Turmas Registradas</span>
             </button>
 

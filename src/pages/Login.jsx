@@ -28,45 +28,43 @@ function Login() {
 
 
     return (
-    <form onSubmit={handleLogin}>
-        <h1>Gerenciador de Frequência</h1>
-        
-        
-        <h3>Login</h3>
-        <input 
-            type='email'
-            placeholder='E-mail de Autenticação'
-            required
-            style={inputStyle}
-            value={email} 
-            onChange={(e) => setEmail(e.target.value)}
-        ></input>
+        <form onSubmit={handleLogin} className='card-projeto' style={{gap: '8px'}}>
+            <h1>Gerenciador de Frequência</h1>
+            <h3>Login</h3>
+            <input 
+                type='email'
+                placeholder='E-mail de Autenticação'
+                required
+                style={inputStyle}
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+            ></input>
 
-        <input 
-            type='password'
-            placeholder='Senha'
-            required
-            style={inputStyle}
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-        ></input>
+            <input 
+                type='password'
+                placeholder='Senha'
+                required
+                style={inputStyle}
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+            ></input>
 
-        {mensagem && (
-            <p className={`mensagem ${mensagem.includes("sucesso") ? "sucesso" : "erro"}`}>
-                {mensagem === "sucesso" ? "Login realizado! Entrando..." : mensagem}
-            </p>
-        )}
+            {mensagem && (
+                <p className={`mensagem ${mensagem.includes("sucesso") ? "sucesso" : "erro"}`}>
+                    {mensagem === "sucesso" ? "Login realizado! Entrando..." : mensagem}
+                </p>
+            )}
 
-        <button 
-            type='submit' 
-            style={buttonStyle}
-            className='button-padrao'
-            >
-            Entrar
-        </button>
+            <button 
+                type='submit' 
+                style={buttonStyle}
+                className='button-padrao'
+                >
+                Entrar
+            </button>
 
-        {versao}
-    </form>
+            {versao}
+        </form>
 
     );
 }
