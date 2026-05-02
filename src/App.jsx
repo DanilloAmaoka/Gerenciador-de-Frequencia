@@ -9,9 +9,8 @@ function AppRoutes() {
   return (
     <div className='fundo-geral'>
       <Router>
-        <div className='card-projeto'>
-          <Routes>
-            <Route path="/" element={<Login />} />
+        <Routes>
+          <Route path="/" element={<Login />} />
             <Route 
               path="/inicio" 
               element={
@@ -30,7 +29,6 @@ function AppRoutes() {
               } 
             />
         </Routes>
-        </div>
       </Router>
     </div>
     
