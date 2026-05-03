@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { data, useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
@@ -8,7 +8,7 @@ import icone05 from '../assets/icon5.png'
 import icone06 from '../assets/icon6.png'
 import icone07 from '../assets/icon7.png'
 
-function Turmas() {
+function CadastrarFaltas() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
     const [turmaAtiva, setTurmaAtiva] = useState(""); 
@@ -45,15 +45,6 @@ function Turmas() {
         if (!novoAluno.trim()) {
             alert("Digite o nome do aluno!");
             return;
-        }
-
-        const nomeJaExiste = alunos.includes(novoAluno.trim());
-
-        if (nomeJaExiste) {
-            const confirmar = window.alert(
-                `Já existe um aluno chamado "${novoAluno}".`
-            );
-            return
         }
 
         try {
@@ -170,7 +161,7 @@ function Turmas() {
                     </div>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
-                    <h2>Alunos</h2>
+                    <h2>Alunos que Faltaram Hoje ({diaSemana})</h2>
                     <div style={style.containerConteudoTurmas}>
                         {turmaAtiva ? (
                             <>
@@ -231,6 +222,9 @@ function Turmas() {
                                         border: 'none'
                                     }}
                                 />
+                                <button className='button-padrao' style={{margin: '5px', height:'25px', borderRadius: '80px', border: 'none', backgroundColor: 'transparent'}}><img src={icone06} alt="Ícone" style={{ width: '25px', height: '25px' }}
+                                    onClick={()=> window.alert("O sistema permite nomes idênticos. Para evitar confusão, tente usar sobrenomes ou iniciais para diferenciá-los.")}
+                                /></button>
                             </form>
                             <h2 style={{alignContent: 'center'}}>=</h2>
                             <button 
@@ -311,14 +305,13 @@ const style = {
         color: 'black',
         fontSize: '12px',
         fontWeight: '600',
-        width: '240px',
+        width: '205px',
         cursor: 'pointer',
         transition: 'all 0.2s ease-in-out',
         alignItems: 'center',
         justifyContent: 'left',
         gap: '5px',
     },
-
 }
 
-export default Turmas;
+export default CadastrarFaltas;

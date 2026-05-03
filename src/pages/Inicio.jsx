@@ -13,7 +13,9 @@ function Inicio() {
             <h3>Menu</h3>
             <button
                 style={buttonStyle}
-                className='button-padrao'>
+                className='button-padrao'
+                onClick={() => navigate('/cadastrarfaltas')}
+                >
                 <img src={icone02} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
                 <span style={{color: 'black'}}>Adicionar Faltas do Dia (<strong>{diaSemana}</strong>)</span>
             </button>

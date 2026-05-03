@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Login from '../pages/Login';
 import Inicio from '../pages/Inicio';
 import Turmas from '../pages/Turmas';
-import Turmas from '../pages/Turma';
+import TurCadastrarFaltas from '../pages/CadastrarFaltas';
 
 function AppRoutes() {
   return (
@@ -12,6 +12,7 @@ function AppRoutes() {
         <Route path="/" element={<Login />} />
         <Route path="/inicio" element={<Inicio />} />
         <Route path="/turmas" element={<Turmas />} />
+        <Route path="/cadastrarfaltas" element={<CadastrarFaltas />} />
       </Routes>
     </BrowserRouter>
   );
