@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './pages/Login';
 import Inicio from './pages/Inicio';
 import Turmas from './pages/Turmas';
+import CadastrarFaltas from './pages/CadastrarFaltas';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Criar_Turma from './pages/Criar_Turma';
 
@@ -25,6 +26,15 @@ function AppRoutes() {
               element={
                 <ProtectedRoute>
                   <Turmas />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/cadastrarfaltas" 
+              element={
+                <ProtectedRoute>
+                  <CadastrarFaltas />
                 </ProtectedRoute>
               } 
             />
