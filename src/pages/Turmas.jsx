@@ -7,6 +7,7 @@ import icone04 from '../assets/icon4.png'
 import icone05 from '../assets/icon5.png'
 import icone06 from '../assets/icon6.png'
 import icone07 from '../assets/icon7.png'
+import icone08 from '../assets/icon8.png'
 
 function Turmas() {
     const { diaSemana, dataFormatada } = getInfoData();
@@ -17,72 +18,7 @@ function Turmas() {
     const [novoAluno, setNovoAluno] = useState("");
     const [avisos, setAvisos] = useState(true)
 
-    const deletarAluno = async (nomeAluno) => {
-        if (!window.confirm(`Tem certeza que deseja remover ${nomeAluno}?`)) return;
-
-        try {
-            const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const documentoTurma = querySnapshot.docs[0];
-                const docRef = doc(db, "turmas", documentoTurma.id);
-
-                await updateDoc(docRef, {
-                    alunos: arrayRemove(nomeAluno)
-                });
-                setAlunos(prev => prev.filter(aluno => aluno !== nomeAluno));
-                if (avisos === true) {window.alert(`${nomeAluno} removido do ${turmaAtiva} com sucesso!`)};
-            }
-        } catch (error) {
-            console.error("Erro ao deletar aluno:", error);
-            alert("Erro ao remover aluno.");
-        }
-    };
-
-    const adicionarAluno = async () => {
-        if (!novoAluno.trim()) {
-            alert("Digite o nome do aluno!");
-            return;
-        }
-
-        const nomeJaExiste = alunos.includes(novoAluno.trim());
-
-        if (nomeJaExiste) {
-            const confirmar = window.alert(
-                `Já existe um aluno chamado "${novoAluno}".`
-            );
-            return
-        }
-
-        try {
-            setCarregando(true);
-            const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const docId = querySnapshot.docs[0].id;
-                const docRef = doc(db, "turmas", docId);
-
-                // arrayUnion adiciona o item ao array sem duplicar se já existir
-                await updateDoc(docRef, {
-                    alunos: arrayUnion(novoAluno)
-                });
-
-                // Atualiza a lista na tela imediatamente
-                setAlunos(prev => [...prev, novoAluno]);
-                setNovoAluno("");
-                if (avisos === true) {alert(`${novoAluno} adicionado com sucesso!`)};
-            }
-        } catch (error) {
-            console.error("Erro ao adicionar:", error);
-            alert("Erro ao adicionar aluno.");
-        } finally {
-            setCarregando(false);
-        }
-    };
+   
     
    useEffect(() => {
         const buscarAlunos = async () => {
@@ -112,7 +48,15 @@ function Turmas() {
     }, [turmaAtiva]);
 
     return (
-        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px'}}>
+        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px', gap: '10px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', gap: '10px'}}>
+                <button className='button-padrao' style={style.buttonVoltar}
+                    onClick={()=> navigate(-1)}>
+                    <img src={icone08} alt="Ícone" style={{ width: '35px', height: '35px' }}/>
+                </button>
+                <h1>Gerenciar Turmas</h1>
+            </div>
+            <hr></hr>
             <div style={{display: 'flex', flexDirection: 'row', height: '490px', width: '97%', gap: '5px'}}>
                 <div style={{display: 'flex', flexDirection: 'column', width: '100%'}}>
                     <h2>Turmas</h2>
@@ -216,42 +160,39 @@ function Turmas() {
                         )}
                     </div>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                            <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
-                                <input
-                                    disabled={!turmaAtiva || carregando} 
-                                    type="text"
-                                    placeholder="Nome do aluno a ser Adicionado"
-                                    value={novoAluno}
-                                    onChange={(e) => setNovoAluno(e.target.value)}
-                                    style={{
-                                        flex: 1,
-                                        width: '351px',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: 'none'
-                                    }}
-                                />
-                            </form>
-                            <h2 style={{alignContent: 'center'}}>=</h2>
-                            <button 
-                                className='button-padrao' 
-                                style={{...style.buttonAdicionarAluno, opacity: !turmaAtiva ? 0.5 : 1}}
-                                onClick={adicionarAluno}
-                                disabled={!turmaAtiva || carregando}
-                            >
-                                <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
-                                <span>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</span>
-                            </button>
-                            <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
-                                onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
-                                title='Ativar\Desativar Feedbacks de Ação'
-                            /></button>
-                        </div>
+                        <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
+                            <input
+                                disabled={!turmaAtiva || carregando} 
+                                type="text"
+                                placeholder="Nome do aluno a ser Adicionado"
+                                value={novoAluno}
+                                onChange={(e) => setNovoAluno(e.target.value)}
+                                style={{
+                                    flex: 1,
+                                    width: '351px',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    border: 'none'
+                                }}
+                            />
+                        </form>
+                        <h2 style={{alignContent: 'center'}}>=</h2>
+                        <button 
+                            className='button-padrao' 
+                            style={{...style.buttonAdicionarAluno, opacity: !turmaAtiva ? 0.5 : 1}}
+                            onClick={adicionarAluno}
+                            disabled={!turmaAtiva || carregando}
+                        >
+                            <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
+                            <span>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</span>
+                        </button>
+                        <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
+                            onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
+                            title='Ativar\Desativar Feedbacks de Ação'
+                        /></button>
                     </div>
-            </div>
-            <button className='button-padrao' style={style.buttonVoltar}
-                onClick={()=> navigate(-1)}
-            >Voltar</button>    
+                </div>
+            </div>    
         </div>
             
     );
@@ -291,15 +232,17 @@ const style = {
     },
 
     buttonVoltar: {
-        padding: '12px',
-        borderRadius: '8px',
-        backgroundColor: '#cfe1f7',
+        padding: '0px',
+        borderRadius: '80px',
+        backgroundColor: 'transparent',
         color: 'black',
         fontSize: '14px',
         fontWeight: '600',
-        width: '100%',
+        width: '40px',
+        height: '40px',
         cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out'
+        transition: 'all 0.2s ease-in-out',
+        border: 'none',
     },
 
     buttonAdicionarAluno: {
