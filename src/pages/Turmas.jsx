@@ -7,6 +7,7 @@ import icone04 from '../assets/icon4.png'
 import icone05 from '../assets/icon5.png'
 import icone06 from '../assets/icon6.png'
 import icone07 from '../assets/icon7.png'
+import icone08 from '../assets/icon8.png'
 
 function Turmas() {
     const { diaSemana, dataFormatada } = getInfoData();
@@ -112,9 +113,18 @@ function Turmas() {
     }, [turmaAtiva]);
 
     return (
-        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px'}}>
+        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px', gap: '10px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', gap: '15px'}}>
+                <button className='button-padrao' style={style.buttonVoltar}
+                    onClick={()=> navigate(-1)}
+                >
+                    <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }}/>
+                </button>
+                <h1>Gerenciar Turmas</h1>
+            </div>
+            <hr></hr>
             <div style={{display: 'flex', flexDirection: 'row', height: '490px', width: '97%', gap: '5px'}}>
-                <div style={{display: 'flex', flexDirection: 'column', width: '100%'}}>
+                <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
                     <h2>Turmas</h2>
                     <div style={style.containerTurmas}>
                         <button 
@@ -216,42 +226,39 @@ function Turmas() {
                         )}
                     </div>
                     <div style={{ display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                            <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
-                                <input
-                                    disabled={!turmaAtiva || carregando} 
-                                    type="text"
-                                    placeholder="Nome do aluno a ser Adicionado"
-                                    value={novoAluno}
-                                    onChange={(e) => setNovoAluno(e.target.value)}
-                                    style={{
-                                        flex: 1,
-                                        width: '351px',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: 'none'
-                                    }}
-                                />
-                            </form>
-                            <h2 style={{alignContent: 'center'}}>=</h2>
-                            <button 
-                                className='button-padrao' 
-                                style={{...style.buttonAdicionarAluno, opacity: !turmaAtiva ? 0.5 : 1}}
-                                onClick={adicionarAluno}
-                                disabled={!turmaAtiva || carregando}
-                            >
-                                <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
-                                <span>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</span>
-                            </button>
-                            <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
-                                onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
-                                title='Ativar\Desativar Feedbacks de Ação'
-                            /></button>
-                        </div>
+                        <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
+                            <input
+                                disabled={!turmaAtiva || carregando} 
+                                type="text"
+                                placeholder="Nome do aluno a ser Adicionado"
+                                value={novoAluno}
+                                onChange={(e) => setNovoAluno(e.target.value)}
+                                style={{
+                                    flex: 1,
+                                    width: '351px',
+                                    padding: '10px',
+                                    borderRadius: '8px',
+                                    border: 'none'
+                                }}
+                            />
+                        </form>
+                        <h2 style={{alignContent: 'center'}}>=</h2>
+                        <button 
+                            className='button-padrao' 
+                            style={{...style.buttonAdicionarAluno, opacity: !turmaAtiva ? 0.5 : 1}}
+                            onClick={adicionarAluno}
+                            disabled={!turmaAtiva || carregando}
+                        >
+                            <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
+                            <span>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</span>
+                        </button>
+                        <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
+                            onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
+                            title='Ativar\Desativar Feedbacks de Ação'
+                        /></button>
                     </div>
+                </div>
             </div>
-            <button className='button-padrao' style={style.buttonVoltar}
-                onClick={()=> navigate(-1)}
-            >Voltar</button>    
         </div>
             
     );
@@ -266,7 +273,7 @@ const style = {
         gap: '5px', 
         padding: '10px', 
         border: '1px solid #ddd',
-        borderRadius: '15px'
+        borderRadius: '15px',
     },
 
     containerConteudoTurmas: {
@@ -279,7 +286,7 @@ const style = {
         border: '1px solid #ddd',
         borderRadius: '15px',
         overflowY: 'auto', 
-        overflowX: 'hidden'
+        overflowX: 'hidden',
     },
 
     itemAlunoStyle: {
@@ -291,15 +298,13 @@ const style = {
     },
 
     buttonVoltar: {
-        padding: '12px',
-        borderRadius: '8px',
-        backgroundColor: '#cfe1f7',
-        color: 'black',
-        fontSize: '14px',
-        fontWeight: '600',
-        width: '100%',
+        borderRadius: '80px',
+        backgroundColor: 'transparent',
+        width: '30px',
+        height: '30px',
         cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out'
+        transition: 'all 0.2s ease-in-out',
+        border: 'none'
     },
 
     buttonAdicionarAluno: {
