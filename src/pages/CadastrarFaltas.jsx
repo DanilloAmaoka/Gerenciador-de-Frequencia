@@ -3,10 +3,7 @@ import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where, arrayRemove, doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import icone04 from '../assets/icon4.png'
-import icone05 from '../assets/icon5.png'
-import icone06 from '../assets/icon6.png'
-import icone07 from '../assets/icon7.png'
+import icone08 from '../assets/icon8.png'
 
 function CadastrarFaltas() {
     const { diaSemana, dataFormatada } = getInfoData();
@@ -14,68 +11,17 @@ function CadastrarFaltas() {
     const [turmaAtiva, setTurmaAtiva] = useState(""); 
     const [alunos, setAlunos] = useState([]); 
     const [carregando, setCarregando] = useState(false);
-    const [novoAluno, setNovoAluno] = useState("");
-    const [avisos, setAvisos] = useState(true)
+    const [faltantes, setFaltantes] = useState([]);
 
-    const deletarAluno = async (nomeAluno) => {
-        if (!window.confirm(`Tem certeza que deseja remover ${nomeAluno}?`)) return;
-
-        try {
-            const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const documentoTurma = querySnapshot.docs[0];
-                const docRef = doc(db, "turmas", documentoTurma.id);
-
-                await updateDoc(docRef, {
-                    alunos: arrayRemove(nomeAluno)
-                });
-                setAlunos(prev => prev.filter(aluno => aluno !== nomeAluno));
-                if (avisos === true) {window.alert(`${nomeAluno} removido do ${turmaAtiva} com sucesso!`)};
-            }
-        } catch (error) {
-            console.error("Erro ao deletar aluno:", error);
-            alert("Erro ao remover aluno.");
-        }
-    };
-
-    const adicionarAluno = async () => {
-        if (!novoAluno.trim()) {
-            alert("Digite o nome do aluno!");
-            return;
-        }
-
-        try {
-            setCarregando(true);
-            const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
-
-            if (!querySnapshot.empty) {
-                const docId = querySnapshot.docs[0].id;
-                const docRef = doc(db, "turmas", docId);
-
-                // arrayUnion adiciona o item ao array sem duplicar se já existir
-                await updateDoc(docRef, {
-                    alunos: arrayUnion(novoAluno)
-                });
-
-                // Atualiza a lista na tela imediatamente
-                setAlunos(prev => [...prev, novoAluno]);
-                setNovoAluno("");
-                if (avisos === true) {alert(`${novoAluno} adicionado com sucesso!`)};
-            }
-        } catch (error) {
-            console.error("Erro ao adicionar:", error);
-            alert("Erro ao adicionar aluno.");
-        } finally {
-            setCarregando(false);
-        }
+    const alternarFalta = (nomeAluno) => {
+        setFaltantes(prev => 
+            prev.includes(nomeAluno) 
+                ? prev.filter(a => a !== nomeAluno)
+                : [...prev, nomeAluno]
+        );
     };
     
-   useEffect(() => {
+    useEffect(() => {
         const buscarAlunos = async () => {
             if (!turmaAtiva) return;
             
@@ -103,9 +49,18 @@ function CadastrarFaltas() {
     }, [turmaAtiva]);
 
     return (
-        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px'}}>
+        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px', gap: '10px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', gap: '15px'}}>
+                <button className='button-padrao' style={style.buttonVoltar}
+                    onClick={()=> navigate(-1)}
+                >
+                    <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }}/>
+                </button>
+                <h1>Gerenciar Turmas</h1>
+            </div>
+            <hr></hr>
             <div style={{display: 'flex', flexDirection: 'row', height: '490px', width: '97%', gap: '5px'}}>
-                <div style={{display: 'flex', flexDirection: 'column', width: '100%'}}>
+                <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
                     <h2>Turmas</h2>
                     <div style={style.containerTurmas}>
                         <button 
@@ -161,7 +116,7 @@ function CadastrarFaltas() {
                     </div>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
-                    <h2>Alunos que Faltaram Hoje ({diaSemana})</h2>
+                    <h2>Alunos</h2>
                     <div style={style.containerConteudoTurmas}>
                         {turmaAtiva ? (
                             <>
@@ -170,82 +125,72 @@ function CadastrarFaltas() {
                                     <p>Carregando lista...</p>
                                 ) : (
                                     <ul style={{ listStyle: 'none', padding: 0, borderRadius: '8px' }}>
-                                        {alunos.map((aluno, index) => (
+                                    {alunos.map((aluno, index) => {
+                                        const estaFaltando = faltantes.includes(aluno);
+
+                                        return (
                                             <li 
                                                 key={index} 
+                                                onClick={() => alternarFalta(aluno)}
                                                 style={{
                                                     ...style.itemAlunoStyle, 
                                                     display: 'flex', 
                                                     justifyContent: 'space-between', 
                                                     alignItems: 'center',
+                                                    cursor: 'pointer',
+                                                    backgroundColor: estaFaltando ? '#ffebee' : '#fff', 
+                                                    borderLeft: estaFaltando ? '5px solid #ff5252' : '5px solid transparent', 
+                                                    transition: 'all 0.2s'
                                                 }} 
                                                 className='button-padrao'
                                             >
-                                                <span>{index} - {aluno}</span>
-                                                
-                                                <button 
-                                                    onClick={() => deletarAluno(aluno)}
-                                                    className='button-deletarAluno'
-                                                    style={{
-                                                        height: '50px',
-                                                        width: '50px',
-                                                        border: 'none',
-                                                        padding: '0px',
-                                                        borderRadius: '8px',
-                                                    }}
-                                                >
-                                                    <img src={icone04} alt="Ícone" style={{ width: '20px', height: '20px' }}/>
-                                                </button>
+                                                <span style={{ color: estaFaltando ? '#d32f2f' : 'black', fontWeight: estaFaltando ? 'bold' : 'normal' }}>
+                                                    {index} - {aluno}
+                                                </span>
+
+                                                <div style={{
+                                                    width: '20px',
+                                                    height: '20px',
+                                                    borderRadius: '50%',
+                                                    border: '2px solid',
+                                                    borderColor: estaFaltando ? '#ff5252' : '#ccc',
+                                                    backgroundColor: estaFaltando ? '#ff5252' : 'transparent',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: 'white',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    {estaFaltando ? '✕' : ''}
+                                                </div>
                                             </li>
-                                        ))}
-                                        {alunos.length === 0 && <p>Nenhum aluno cadastrado.</p>}
-                                    </ul>
+                                        );
+                                    })}
+                                    {alunos.length === 0 && <p>Nenhum aluno cadastrado.</p>}
+                                </ul>
                                 )}
                             </>
                         ) : (
                             <p>Selecione uma turma para ver os alunos.</p>
                         )}
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px'}}>
-                            <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
-                                <input
-                                    disabled={!turmaAtiva || carregando} 
-                                    type="text"
-                                    placeholder="Nome do aluno a ser Adicionado"
-                                    value={novoAluno}
-                                    onChange={(e) => setNovoAluno(e.target.value)}
-                                    style={{
-                                        flex: 1,
-                                        width: '351px',
-                                        padding: '10px',
-                                        borderRadius: '8px',
-                                        border: 'none'
-                                    }}
-                                />
-                                <button className='button-padrao' style={{margin: '5px', height:'25px', borderRadius: '80px', border: 'none', backgroundColor: 'transparent'}}><img src={icone06} alt="Ícone" style={{ width: '25px', height: '25px' }}
-                                    onClick={()=> window.alert("O sistema permite nomes idênticos. Para evitar confusão, tente usar sobrenomes ou iniciais para diferenciá-los.")}
-                                /></button>
-                            </form>
-                            <h2 style={{alignContent: 'center'}}>=</h2>
-                            <button 
-                                className='button-padrao' 
-                                style={{...style.buttonAdicionarAluno, opacity: !turmaAtiva ? 0.5 : 1}}
-                                onClick={adicionarAluno}
-                                disabled={!turmaAtiva || carregando}
-                            >
-                                <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
-                                <span>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</span>
-                            </button>
-                            <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
-                                onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
-                                title='Ativar\Desativar Feedbacks de Ação'
-                            /></button>
-                        </div>
+                    <div  style={style.alertaSalvar} className="animacao-subir">
+                        <p>Você marcou <strong>{faltantes.length}</strong> falta(s).</p>
+                        <button 
+                            className='button-padrao' 
+                            disabled={faltantes.length === 0} 
+                            style={{
+                                ...style.buttonConfirmar,
+                                backgroundColor: faltantes.length === 0 ? '#ccc' : '#ff5252',
+                                cursor: faltantes.length === 0 ? 'not-allowed' : 'pointer',
+                                opacity: faltantes.length === 0 ? 0.7 : 1
+                            }}
+                        >
+                            Confirmar Chamada de Hoje
+                        </button>
                     </div>
+                </div>
             </div>
-            <button className='button-padrao' style={style.buttonVoltar}
-                onClick={()=> navigate(-1)}
-            >Voltar</button>    
         </div>
             
     );
@@ -266,7 +211,7 @@ const style = {
     containerConteudoTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '410px', 
+        height: '372px', 
         width: '670px', 
         gap: '5px', 
         padding: '10px', 
@@ -277,7 +222,7 @@ const style = {
     },
 
     itemAlunoStyle: {
-        padding: '2px',
+        padding: '12px',
         borderBottom: '1px solid #eee',
         fontSize: '16px',
         cursor: "default",
@@ -285,33 +230,35 @@ const style = {
     },
 
     buttonVoltar: {
-        padding: '12px',
-        borderRadius: '8px',
-        backgroundColor: '#cfe1f7',
-        color: 'black',
-        fontSize: '14px',
-        fontWeight: '600',
-        width: '100%',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out'
-    },
-
-    buttonAdicionarAluno: {
-        display: 'flex',
-        flexDirection: 'row',
-        padding: '6px',
-        borderRadius: '8px',
-        backgroundColor: '#fafcff',
-        color: 'black',
-        fontSize: '12px',
-        fontWeight: '600',
-        width: '205px',
+        borderRadius: '80px',
+        backgroundColor: 'transparent',
+        width: '30px',
+        height: '30px',
         cursor: 'pointer',
         transition: 'all 0.2s ease-in-out',
-        alignItems: 'center',
-        justifyContent: 'left',
-        gap: '5px',
+        border: 'none'
     },
+
+    alertaSalvar: {
+        padding: '15px',
+        backgroundColor: '#fff3f3',
+        border: '1px solid #ffcdd2',
+        borderRadius: '12px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+    },
+
+    buttonConfirmar: {
+        backgroundColor: '#ff5252',
+        color: 'white',
+        padding: '10px 20px',
+        borderRadius: '8px',
+        border: 'none',
+        cursor: 'pointer',
+        fontWeight: 'bold'
+    }
 }
 
 export default CadastrarFaltas;
