@@ -225,7 +225,8 @@ function Turmas() {
                             <p>Selecione uma turma para ver os alunos.</p>
                         )}
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '20px'}}>
+                    <h4>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</h4>
+                    <div style={{ display: 'flex', marginBottom: '20px'}}>
                         <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
                             <input
                                 disabled={!turmaAtiva || carregando} 
@@ -237,12 +238,11 @@ function Turmas() {
                                     flex: 1,
                                     width: '351px',
                                     padding: '10px',
-                                    borderRadius: '8px',
+                                    borderRadius: '10px 0px 0px 10px',
                                     border: 'none'
                                 }}
                             />
                         </form>
-                        <h2 style={{alignContent: 'center'}}>=</h2>
                         <button 
                             className='button-padrao' 
                             style={{...style.buttonAdicionarAluno, opacity: !turmaAtiva ? 0.5 : 1}}
@@ -250,7 +250,7 @@ function Turmas() {
                             disabled={!turmaAtiva || carregando}
                         >
                             <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
-                            <span>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</span>
+                            <span>Adicionar</span>
                         </button>
                         <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
                             onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
@@ -310,19 +310,24 @@ const style = {
     buttonAdicionarAluno: {
         display: 'flex',
         flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        gap: '5px',
         padding: '6px',
-        borderRadius: '8px',
-        backgroundColor: '#fafcff',
-        color: 'black',
+        borderRadius: '0px 20px 20px 0px',
+        width: '240px',
         fontSize: '12px',
         fontWeight: '600',
-        width: '240px',
+        color: '#1e3a8a',
         cursor: 'pointer',
-        transition: 'all 0.2s ease-in-out',
-        alignItems: 'center',
-        justifyContent: 'left',
-        gap: '5px',
-    },
+        backgroundColor: 'rgba(207, 225, 247, 0.35)', 
+        border: '1px solid rgba(147, 197, 253, 0.5)', 
+        boxShadow: '0 4px 14px rgba(0, 110, 188, 0.08)', 
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    }
 
 }
 
