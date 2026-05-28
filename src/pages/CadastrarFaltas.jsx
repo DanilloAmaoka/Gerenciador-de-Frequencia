@@ -13,6 +13,23 @@ function CadastrarFaltas() {
     const [carregando, setCarregando] = useState(false);
     const [faltantes, setFaltantes] = useState([]);
 
+    const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
+
+    const formatarNovaData = (dataISO) => {
+        if (!dataISO) return "";
+        const [ano, mes, dia] = dataISO.split('-');
+        return `${dia}/${mes}/${ano}`;
+    };
+
+    // 2. Traduz o dia da semana da nova data escolhida
+    const obterNovoDiaSemana = (dataISO) => {
+        const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        // O 'T12:00:00' impede que o fuso horário mude o dia para ontem
+        const data = new Date(dataISO + 'T12:00:00'); 
+        return dias[data.getDay()];
+    };
+
+
     const alternarFalta = (nomeAluno) => {
         setFaltantes(prev => 
             prev.includes(nomeAluno) 
@@ -50,7 +67,7 @@ function CadastrarFaltas() {
 
     return (
         <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px', gap: '10px'}}>
-            <div style={{display: 'flex', flexDirection: 'row', gap: '15px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', gap: '15px', alignContent: 'center', alignItems: 'center'}}>
                 <button className='button-padrao' style={style.buttonVoltar}
                     onClick={()=> navigate(-1)}
                 >
@@ -116,7 +133,45 @@ function CadastrarFaltas() {
                     </div>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
-                    <h2>Alunos</h2>
+                    <div style={{display: 'flex', flexDirection: 'row', width: '100%', gap: '5px', alignItems: 'center', justifyContent: 'space-between'}}>
+                        <h2>Alunos</h2>
+                        <div style={{ position: 'relative', display: 'inline-block' }} className='button-padrao'>
+                            <input 
+                                type="date" 
+                                value={dataChamada}
+                                onChange={(e) => setDataChamada(e.target.value)}
+                                onClick={(e) => {
+                                    try { e.target.showPicker(); } catch (err) { console.log(err); }
+                                }}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    opacity: 0,
+                                    cursor: 'pointer',
+                                    zIndex: 2
+                                }}
+                            />
+                            <div 
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    backgroundColor: 'transparent',
+                                    border: '1px solid #d1d5db',
+                                    color: '#374151',
+                                    fontSize: '13px',
+                                    fontWeight: '500',
+                                    fontFamily: 'inherit',
+                                    textAlign: 'center',
+                                    whiteSpace: 'nowrap'
+                                }}
+                            >
+                                📅 {dataChamada === new Date().toISOString().split('T')[0] ? dataFormatada : formatarNovaData(dataChamada)}
+                            </div>
+                        </div>
+                    </div>
                     <div style={style.containerConteudoTurmas}>
                         {turmaAtiva ? (
                             <>
@@ -175,7 +230,17 @@ function CadastrarFaltas() {
                         )}
                     </div>
                     <div  style={style.alertaSalvar} className="animacao-subir">
-                        <p>Você marcou <strong>{faltantes.length}</strong> falta(s).</p>
+                        <p>
+                            Você marcou <strong>{faltantes.length}</strong> falta(s) no dia {
+                                dataChamada === new Date().toISOString().split('T')[0] 
+                                    ? dataFormatada 
+                                    : formatarNovaData(dataChamada)
+                            } (<strong>{
+                                dataChamada === new Date().toISOString().split('T')[0] 
+                                    ? diaSemana 
+                                    : obterNovoDiaSemana(dataChamada)
+                            }</strong>).
+                        </p>
                         <button 
                             className='button-padrao' 
                             disabled={faltantes.length === 0} 
@@ -211,7 +276,7 @@ const style = {
     containerConteudoTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '372px', 
+        height: '368px', 
         width: '670px', 
         gap: '5px', 
         padding: '10px', 
@@ -258,6 +323,21 @@ const style = {
         border: 'none',
         cursor: 'pointer',
         fontWeight: 'bold'
+    },
+
+    inputData: {
+        appearance: 'none',
+        WebkitAppearance: 'none',
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: '13px',
+        fontWeight: '500',
+        backgroundColor: 'transparent',
+        border: '1px solid #d1d5db', 
+        color: '#374151',  
+        transition: 'all 0.15s ease'
     }
 }
 
