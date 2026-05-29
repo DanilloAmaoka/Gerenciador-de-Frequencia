@@ -15,6 +15,10 @@ function CadastrarFaltas() {
 
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
 
+    const handleLimparSelecao = () => {
+        setFaltantes([]);
+    };
+
     const formatarNovaData = (dataISO) => {
         if (!dataISO) return "";
         const [ano, mes, dia] = dataISO.split('-');
@@ -73,7 +77,7 @@ function CadastrarFaltas() {
                 >
                     <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }}/>
                 </button>
-                <h1>Gerenciar Turmas</h1>
+                <h1>Adicionar Faltas</h1>
             </div>
             <hr></hr>
             <div style={{display: 'flex', flexDirection: 'row', height: '490px', width: '97%', gap: '5px'}}>
@@ -221,7 +225,15 @@ function CadastrarFaltas() {
                                             </li>
                                         );
                                     })}
-                                    {alunos.length === 0 && <p>Nenhum aluno cadastrado.</p>}
+                                    {alunos.length === 0 && 
+                                        <button 
+                                            onClick={() => navigate('/turmas')}
+                                            style={style.buttonAdicionarAluno} 
+                                            onMouseEnter={(e) => {e.currentTarget.style.color = '#0f36f95d';}} 
+                                            onMouseLeave={(e) => {e.currentTarget.style.color = '#666';}}> 
+                                                Nenhum aluno cadastrado. <strong style={{ textDecoration: 'underline' }}>Clique aqui para cadastrar</strong>
+                                        </button>
+                                    }
                                 </ul>
                                 )}
                             </>
@@ -229,8 +241,8 @@ function CadastrarFaltas() {
                             <p>Selecione uma turma para ver os alunos.</p>
                         )}
                     </div>
-                    <div  style={style.alertaSalvar} className="animacao-subir">
-                        <p>
+                    <div style={style.alertaSalvar} className="animacao-subir">
+                        <p style={{ margin: '0 0 15px 0', textAlign: 'left' }}>
                             Você marcou <strong>{faltantes.length}</strong> falta(s) no dia {
                                 dataChamada === new Date().toISOString().split('T')[0] 
                                     ? dataFormatada 
@@ -241,18 +253,41 @@ function CadastrarFaltas() {
                                     : obterNovoDiaSemana(dataChamada)
                             }</strong>).
                         </p>
-                        <button 
-                            className='button-padrao' 
-                            disabled={faltantes.length === 0} 
-                            style={{
-                                ...style.buttonConfirmar,
-                                backgroundColor: faltantes.length === 0 ? '#ccc' : '#ff5252',
-                                cursor: faltantes.length === 0 ? 'not-allowed' : 'pointer',
-                                opacity: faltantes.length === 0 ? 0.7 : 1
-                            }}
-                        >
-                            Confirmar Chamada de Hoje
-                        </button>
+
+                        <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'flex-start' }}>
+                            
+                            <button 
+                                className='button-padrao'
+                                onClick={handleLimparSelecao}
+                                disabled={faltantes.length === 0} 
+                                style={{
+                                    ...style.buttonConfirmar,
+                                    flex: 1,
+                                    backgroundColor: faltantes.length === 0 ? '#ccc' : '#757575',
+                                    cursor: faltantes.length === 0 ? 'not-allowed' : 'pointer',
+                                    opacity: faltantes.length === 0 ? 0.7 : 1,
+                                    margin: 0
+                                }}
+                            >
+                                Limpar
+                            </button>
+
+                            <button 
+                                className='button-padrao' 
+                                disabled={faltantes.length === 0} 
+                                style={{
+                                    ...style.buttonConfirmar,
+                                    flex: 2,
+                                    backgroundColor: faltantes.length === 0 ? '#ccc' : '#ff5252',
+                                    cursor: faltantes.length === 0 ? 'not-allowed' : 'pointer',
+                                    opacity: faltantes.length === 0 ? 0.7 : 1,
+                                    margin: 0
+                                }}
+                            >
+                                Confirmar Chamada de Hoje
+                            </button>
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -276,7 +311,7 @@ const style = {
     containerConteudoTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '368px', 
+        height: '335px', 
         width: '670px', 
         gap: '5px', 
         padding: '10px', 
@@ -305,14 +340,17 @@ const style = {
     },
 
     alertaSalvar: {
-        padding: '15px',
+        padding: '15px', // Aumentei um pouquinho para dar mais respiro
         backgroundColor: '#fff3f3',
         border: '1px solid #ffcdd2',
         borderRadius: '12px',
         display: 'flex',
+        flexDirection: 'column',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
+        alignItems: 'flex-start', // <--- Garante que tudo comece na esquerda!
+        boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+        width: '100%', // Garante que ele ocupe o espaço disponível para os botões esticarem
+        boxSizing: 'border-box'
     },
 
     buttonConfirmar: {
@@ -338,6 +376,19 @@ const style = {
         border: '1px solid #d1d5db', 
         color: '#374151',  
         transition: 'all 0.15s ease'
+    },
+
+    buttonAdicionarAluno: {
+        background: 'none',
+        border: 'none',
+        padding: 0,
+        color: '#666', // Um cinza discreto para o texto padrão
+        fontSize: '14px',
+        cursor: 'pointer',
+        fontFamily: 'inherit', // Herda a fonte do restante do seu app
+        transition: 'color 0.2s ease, transform 0.2s ease',
+        display: 'inline-flex',
+        gap: '4px'
     }
 }
 
