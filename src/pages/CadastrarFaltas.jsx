@@ -231,7 +231,7 @@ function CadastrarFaltas() {
                                             style={style.buttonAdicionarAluno} 
                                             onMouseEnter={(e) => {e.currentTarget.style.color = '#0f36f95d';}} 
                                             onMouseLeave={(e) => {e.currentTarget.style.color = '#666';}}> 
-                                                Nenhum aluno cadastrado. <strong style={{ textDecoration: 'underline' }}>Clique aqui para cadastrar</strong>
+                                                <strong style={{ textDecoration: 'underline' }}>Nenhum aluno cadastrado. Clique aqui para cadastrar</strong>
                                         </button>
                                     }
                                 </ul>
