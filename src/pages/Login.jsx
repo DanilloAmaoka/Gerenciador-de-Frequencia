@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../firebase/config";
 
 function Login() {
     const navigate = useNavigate();
@@ -10,21 +12,22 @@ function Login() {
 
     const versao = "v0.1.0-beta"
 
-    const handleLogin = (e) => {
-        if (e) e.preventDefault();
-        const EMAIL_MESTRE = "oi@gmail.com";
-        const SENHA_MESTRE = "123";
+    const handleLogin = async (e) => {
+        e.preventDefault();
 
-        if (email === EMAIL_MESTRE && senha === SENHA_MESTRE) {
-            localStorage.setItem("logado", "true");
-            setMensagem("sucesso")
-            setTimeout(() => {
-                navigate('/inicio'); 
-            }, 1500);
-        } else {
-            setMensagem("Email ou Senha incorretos!")
+        try {
+            await signInWithEmailAndPassword(
+            auth,
+            email,
+            senha
+            );
+
+            navigate("/inicio");
+        } catch (error) {
+            setMensagem("Email ou senha incorretos!");
+            console.log(error);
         }
-    }
+    };
 
 
     return (
