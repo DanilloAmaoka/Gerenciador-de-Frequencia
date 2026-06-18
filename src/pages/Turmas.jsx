@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
+
 import { db } from '../firebase/config';
 import { collection, getDocs, query, where, arrayRemove, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import icone04 from '../assets/icon4.png'
@@ -12,7 +13,8 @@ import icone08 from '../assets/icon8.png'
 function Turmas() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
-    const [turmaAtiva, setTurmaAtiva] = useState(""); 
+    const [turmaAtiva, setTurmaAtiva] = useState(localStorage.getItem('turmaAtivaFaltas') || "");
+    localStorage.setItem('turmaAtivaTurmas', turmaAtiva);
     const [alunos, setAlunos] = useState([]); 
     const [carregando, setCarregando] = useState(false);
     const [novoAluno, setNovoAluno] = useState("");
@@ -247,7 +249,7 @@ function Turmas() {
                                         ))}
 
                                         {alunos.length === 0 && (
-                                            <p style={{ textAlign: 'center', color: '#666' }}>
+                                            <p style={{ textAlign: 'left', color: '#666' }}>
                                             Nenhum aluno cadastrado.
                                             </p>
                                         )}

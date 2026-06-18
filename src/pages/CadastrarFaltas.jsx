@@ -8,11 +8,11 @@ import icone08 from '../assets/icon8.png'
 function CadastrarFaltas() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
-    const [turmaAtiva, setTurmaAtiva] = useState(""); 
     const [alunos, setAlunos] = useState([]); 
     const [carregando, setCarregando] = useState(false);
     const [faltantes, setFaltantes] = useState([]);
-
+    const [turmaAtiva, setTurmaAtiva] = useState(localStorage.getItem('turmaAtivaTurmas') || "");
+    localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
 
     const handleLimparSelecao = () => {
@@ -225,15 +225,21 @@ function CadastrarFaltas() {
                                             </li>
                                         );
                                     })}
-                                    {alunos.length === 0 && 
-                                        <button 
-                                            onClick={() => navigate('/turmas')}
-                                            style={style.buttonAdicionarAluno} 
-                                            onMouseEnter={(e) => {e.currentTarget.style.color = '#0f36f95d';}} 
-                                            onMouseLeave={(e) => {e.currentTarget.style.color = '#666';}}> 
-                                                <strong style={{ textDecoration: 'underline' }}>Nenhum aluno cadastrado. Clique aqui para cadastrar</strong>
-                                        </button>
-                                    }
+                                    <button 
+                                        onClick={() => navigate('/turmas')}
+                                        style={style.buttonAdicionarAluno} 
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = '#f3f4f6';
+                                            e.currentTarget.style.color = '#333';
+                                            e.currentTarget.style.borderColor = '#b8c0cc';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = '#fafafa';
+                                            e.currentTarget.style.color = '#666';
+                                            e.currentTarget.style.borderColor = '#d0d7de';
+                                        }}>
+                                            + Cadastrar alunos nesta turma
+                                    </button>
                                 </ul>
                                 )}
                             </>
@@ -379,16 +385,16 @@ const style = {
     },
 
     buttonAdicionarAluno: {
-        background: 'none',
-        border: 'none',
-        padding: 0,
-        color: '#666', // Um cinza discreto para o texto padrão
+        marginTop: '12px',
+        padding: '10px 14px',
+        border: '1px dashed #d0d7de',
+        borderRadius: '10px',
+        background: '#fafafa',
+        color: '#666',
         fontSize: '14px',
         cursor: 'pointer',
-        fontFamily: 'inherit', // Herda a fonte do restante do seu app
-        transition: 'color 0.2s ease, transform 0.2s ease',
-        display: 'inline-flex',
-        gap: '4px'
+        transition: 'all 0.2s ease',
+        width: '100%',
     }
 }
 
