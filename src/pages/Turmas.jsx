@@ -180,7 +180,11 @@ function Turmas() {
                     </div>
                 </div>
                 <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
-                    <h2>Alunos</h2>
+                    <div style={{display: 'flex', flexDirection: 'row', width: '100%', gap: '5px', alignItems: 'center', justifyContent: 'space-between'}}>
+                        <h2>Alunos</h2>
+                        <h3>{alunos.length === 0 ? "" : "Total: " + alunos.length}</h3>
+                    </div>
+                    
                     <div style={style.containerConteudoTurmas}>
                         {turmaAtiva ? (
                             <>
@@ -188,36 +192,65 @@ function Turmas() {
                                 {carregando ? (
                                     <p>Carregando lista...</p>
                                 ) : (
-                                    <ul style={{ listStyle: 'none', padding: 0, borderRadius: '8px' }}>
+                                    <ul
+                                        style={{
+                                            listStyle: 'none',
+                                            padding: 0,
+                                            margin: 0,
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '3px'
+                                        }}
+                                        >
                                         {alunos.map((aluno, index) => (
-                                            <li 
-                                                key={index} 
-                                                style={{
-                                                    ...style.itemAlunoStyle, 
-                                                    display: 'flex', 
-                                                    justifyContent: 'space-between', 
-                                                    alignItems: 'center',
-                                                }} 
+                                            <li
+                                                key={index}
                                                 className='button-padrao'
-                                            >
-                                                <span>{index} - {aluno}</span>
-                                                
-                                                <button 
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    padding: '11px 16px',
+                                                    backgroundColor: '#fff',
+                                                    border: '1px solid #e5e7eb',
+                                                    borderRadius: '12px',
+                                                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+                                                }}
+                                                >
+                                                <span
+                                                    style={{
+                                                    fontSize: '16px',
+                                                    fontWeight: '500'
+                                                    }}
+                                                >
+                                                    {index + 1}. {aluno}
+                                                </span>
+
+                                                <button
                                                     onClick={() => deletarAluno(aluno)}
                                                     className='button-deletarAluno'
                                                     style={{
-                                                        height: '50px',
-                                                        width: '50px',
-                                                        border: 'none',
-                                                        padding: '0px',
-                                                        borderRadius: '8px',
+                                                    height: '40px',
+                                                    width: '40px',
+                                                    border: 'none',
+                                                    borderRadius: '10px',
+                                                    cursor: 'pointer'
                                                     }}
                                                 >
-                                                    <img src={icone04} alt="Ícone" style={{ width: '20px', height: '20px' }}/>
+                                                    <img
+                                                    src={icone04}
+                                                    alt="Excluir"
+                                                    style={{ width: '18px', height: '18px' }}
+                                                    />
                                                 </button>
                                             </li>
                                         ))}
-                                        {alunos.length === 0 && <p>Nenhum aluno cadastrado.</p>}
+
+                                        {alunos.length === 0 && (
+                                            <p style={{ textAlign: 'center', color: '#666' }}>
+                                            Nenhum aluno cadastrado.
+                                            </p>
+                                        )}
                                     </ul>
                                 )}
                             </>
