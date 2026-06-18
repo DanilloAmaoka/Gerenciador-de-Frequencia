@@ -1,11 +1,10 @@
 import { Navigate } from 'react-router-dom';
+import { auth } from '../firebase/config';
 
 export const ProtectedRoute = ({ children }) => {
-    const isAuth = localStorage.getItem("logado");
+  if (!auth.currentUser) {
+    return <Navigate to="/" />;
+  }
 
-    if (!isAuth) {
-        return <Navigate to="/" />;
-    }
-
-    return children;
+  return children;
 };
