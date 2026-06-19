@@ -3,8 +3,8 @@ import Login from './pages/Login';
 import Inicio from './pages/Inicio';
 import Turmas from './pages/Turmas';
 import CadastrarFaltas from './pages/CadastrarFaltas';
+import Metricas from './pages/Metricas';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import Criar_Turma from './pages/Criar_Turma';
 
 function AppRoutes() {
   return (
@@ -35,6 +35,15 @@ function AppRoutes() {
               element={
                 <ProtectedRoute>
                   <CadastrarFaltas />
+                </ProtectedRoute>
+              } 
+            />
+
+             <Route 
+              path="/metricas" 
+              element={
+                <ProtectedRoute>
+                  <Metricas />
                 </ProtectedRoute>
               } 
             />

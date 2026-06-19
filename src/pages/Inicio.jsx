@@ -31,7 +31,7 @@ function Inicio() {
             <button
                 style={{...buttonStyle, fontSize: '23px'}}
                 className='button-padrao'
-                onClick={() => navigate('/turmas')}
+                onClick={() => navigate('/metricas')}
                 >
                 <img src={icone09} alt="Ícone" style={{ width: '50px', height: '50px' }}/>
                 <span>Consultar Métricas</span>
