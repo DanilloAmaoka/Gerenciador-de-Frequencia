@@ -2,7 +2,7 @@ import { data, useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
-import { collection, getDocs, query, where, arrayRemove, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, setDoc, query, where, arrayRemove, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import icone08 from '../assets/icon8.png'
 
 function CadastrarFaltas() {
@@ -15,6 +15,38 @@ function CadastrarFaltas() {
     localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
     const [iniciarSalvar, setIniciarSalvar] = useState(0);
+
+    const handleSalvarBanco = async () => {
+        if (!turmaAtiva) return;
+
+        try {
+            const turmasRef = collection(db, "turmas");
+            const q = query(turmasRef, where("nome", "==", turmaAtiva));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const idTurma = querySnapshot.docs[0].id;
+                const chamadaDocRef = doc(db, "turmas", idTurma, "chamadas", dataChamada);
+
+                await setDoc(chamadaDocRef, {
+                    data: dataChamada,
+                    diaDaSemana: dataChamada === new Date().toISOString().split('T')[0] ? dataFormatada : obterNovoDiaSemana(dataChamada),
+                    faltas: faltantes 
+                }, { merge: true });
+
+                setFaltantes([]);
+                setIniciarSalvar(0);
+                alert("Faltas salvas com sucesso!");
+
+            } else {
+                alert("Aviso: Turma não encontrada.");
+            }
+
+        } catch (error) {
+            console.error("Erro ao salvar no Firebase:", error);
+            alert("Erro ao salvar as faltas.");
+        }
+    };
 
     const handleLimparSelecao = () => {
         setFaltantes([]);
@@ -31,7 +63,6 @@ function CadastrarFaltas() {
         return `${dia}/${mes}/${ano}`;
     };
 
-    // 2. Traduz o dia da semana da nova data escolhida
     const obterNovoDiaSemana = (dataISO) => {
         const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
         // O 'T12:00:00' impede que o fuso horário mude o dia para ontem
@@ -427,6 +458,7 @@ function CadastrarFaltas() {
 
                         <button
                             className="button-padrao"
+                            onClick={handleSalvarBanco}
                             style={{
                                 ...style.buttonConfirmar_CancelarSalvamento,
                                 backgroundColor: '#4caf50'
