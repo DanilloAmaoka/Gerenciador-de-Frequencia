@@ -7,7 +7,6 @@ import { collection, getDocs, query, where, arrayRemove, doc, updateDoc, arrayUn
 import icone04 from '../assets/icon4.png'
 import icone05 from '../assets/icon5.png'
 import icone06 from '../assets/icon6.png'
-import icone07 from '../assets/icon7.png'
 import icone08 from '../assets/icon8.png'
 
 function Turmas() {
@@ -115,7 +114,7 @@ function Turmas() {
     }, [turmaAtiva]);
 
     return (
-        <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px', gap: '10px'}}>
+        <div style={style.containerPrincipal}>
             <div style={{display: 'flex', flexDirection: 'row', gap: '15px'}}>
                 <button className='button-padrao' style={style.buttonVoltar}
                     onClick={()=> navigate(-1)}
@@ -125,8 +124,8 @@ function Turmas() {
                 <h1>Gerenciar Turmas</h1>
             </div>
             <hr></hr>
-            <div style={{display: 'flex', flexDirection: 'row', height: '490px', width: '97%', gap: '5px'}}>
-                <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', height: '540px', width: '100%', gap: '2px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '5px'}}>
                     <h2>Turmas</h2>
                     <div style={style.containerTurmas}>
                         <button 
@@ -134,55 +133,55 @@ function Turmas() {
                             className='button-turma'
                             onClick={() => setTurmaAtiva("1° Ano A")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>1° Ano A</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>1° Ano A</strong></p>
                         </button>
                         <button 
                             style={{backgroundColor: turmaAtiva === "1° Ano B" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "1° Ano B" ? "25px" : "15px"}} 
                             className='button-turma'
                             onClick={() => setTurmaAtiva("1° Ano B")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>1° Ano B</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>1° Ano B</strong></p>
                         </button>
                         <button 
                             style={{backgroundColor: turmaAtiva === "1° Ano C" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "1° Ano C" ? "25px" : "15px"}} 
                             className='button-turma'
                             onClick={() => setTurmaAtiva("1° Ano C")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>1° Ano C</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>1° Ano C</strong></p>
                         </button>
                         <button 
                             style={{backgroundColor: turmaAtiva === "2° Ano A" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano A" ? "25px" : "15px"}} 
                             className='button-turma'
                             onClick={() => setTurmaAtiva("2° Ano A")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>2° Ano A</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>2° Ano A</strong></p>
                         </button>
                         <button 
                             style={{backgroundColor: turmaAtiva === "2° Ano B" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano B" ? "25px" : "15px"}} 
                             className='button-turma'
                             onClick={() => setTurmaAtiva("2° Ano B")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>2° Ano B</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>2° Ano B</strong></p>
                         </button>
                         <button 
                             style={{backgroundColor: turmaAtiva === "2° Ano C" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano C" ? "25px" : "15px"}} 
                             className='button-turma'
                             onClick={() => setTurmaAtiva("2° Ano C")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>2° Ano C</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>2° Ano C</strong></p>
                         </button>
                         <button 
                             style={{backgroundColor: turmaAtiva === "2° Ano D" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano D" ? "25px" : "15px"}} 
                             className='button-turma'
                             onClick={() => setTurmaAtiva("2° Ano D")}
                         >
-                            <p style={{fontSize: '18px'}}><strong>2° Ano D</strong></p>
+                            <p style={{fontSize: '23px'}}><strong>2° Ano D</strong></p>
                         </button>
 
                     </div>
                 </div>
-                <div style={{display: 'flex', flexDirection: 'column', width: '100%', gap: '5px'}}>
-                    <div style={{display: 'flex', flexDirection: 'row', width: '100%', gap: '5px', alignItems: 'center', justifyContent: 'space-between'}}>
+                <div style={{display: 'flex', flexDirection: 'column', width: '700px', gap: '5px'}}>
+                    <div style={{display: 'flex', flexDirection: 'row', width: '700px', gap: '5px', alignItems: 'center', justifyContent: 'space-between'}}>
                         <h2>Alunos</h2>
                         <h3>{alunos.length === 0 ? "" : "Total: " + alunos.length}</h3>
                     </div>
@@ -201,7 +200,7 @@ function Turmas() {
                                             margin: 0,
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            gap: '3px'
+                                            gap: '3px',
                                         }}
                                         >
                                         {alunos.map((aluno, index) => (
@@ -216,12 +215,12 @@ function Turmas() {
                                                     backgroundColor: '#fff',
                                                     border: '1px solid #e5e7eb',
                                                     borderRadius: '12px',
-                                                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+                                                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
                                                 }}
                                                 >
                                                 <span
                                                     style={{
-                                                    fontSize: '16px',
+                                                    fontSize: '18px',
                                                     fontWeight: '500'
                                                     }}
                                                 >
@@ -260,8 +259,8 @@ function Turmas() {
                             <p>Selecione uma turma para ver os alunos.</p>
                         )}
                     </div>
-                    <h4>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</h4>
-                    <div style={{ display: 'flex', marginBottom: '20px'}}>
+                    <h3 style={{marginTop: '15px'}}>Adicionar Aluno { turmaAtiva ? "no " + turmaAtiva : ''}</h3>
+                    <div style={{ display: 'flex'}}>
                         <form style={{display: 'flex', flexDirection: 'row', border: '1px solid #ddd', backgroundColor: 'white', borderRadius: '8px' }}>
                             <input
                                 disabled={!turmaAtiva || carregando} 
@@ -271,10 +270,11 @@ function Turmas() {
                                 onChange={(e) => setNovoAluno(e.target.value)}
                                 style={{
                                     flex: 1,
-                                    width: '351px',
+                                    width: '500px',
                                     padding: '10px',
                                     borderRadius: '10px 0px 0px 10px',
-                                    border: 'none'
+                                    border: 'none',
+                                    fontSize: '15px',
                                 }}
                             />
                         </form>
@@ -285,12 +285,8 @@ function Turmas() {
                             disabled={!turmaAtiva || carregando}
                         >
                             <img src={icone05} alt="Ícone" style={{ width: '15px', height: '15px' }}/>
-                            <span>Adicionar</span>
+                            <span style={{ fontSize: '14px' }}>Adicionar</span>
                         </button>
-                        <button className='button-padrao' style={{margin: '5px', height: '30px', width:'30px', borderRadius: '8px', backgroundColor: avisos ? '#bcffc0' : '#f6a9a9'}}><img src={icone07} alt="Ícone" style={{ width: '20px', height: '20px' }}
-                            onClick={()=> avisos ? setAvisos(false) : setAvisos(true)}
-                            title='Ativar\Desativar Feedbacks de Ação'
-                        /></button>
                     </div>
                 </div>
             </div>
@@ -300,22 +296,41 @@ function Turmas() {
 }
 
 const style = {
+    containerPrincipal: {
+        backgroundColor: 'rgb(245, 245, 245)',
+        padding: '15px',
+        borderRadius: '12px',
+        boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
+
+        width: '1000px',
+        height: '610px',
+
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        gap: '4px',
+
+        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    },
+
     containerTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '445px', 
-        width: '180px',
+        height: '100%', 
+        width: '100%',
         gap: '5px', 
         padding: '10px', 
         border: '1px solid #ddd',
         borderRadius: '15px',
+        overflowY: 'auto', 
+        overflowX: 'hidden'
     },
 
     containerConteudoTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '410px', 
-        width: '670px', 
+        height: '550px', 
+        width: '100%', 
         gap: '5px', 
         padding: '10px', 
         border: '1px solid #ddd',

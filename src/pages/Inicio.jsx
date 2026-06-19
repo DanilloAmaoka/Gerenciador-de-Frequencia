@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import icone01 from '../assets/icon1.png'
 import icone02 from '../assets/icon2.png'
+import icone09 from '../assets/icon9.png'
 import { getInfoData } from '../utils/data';
 
 function Inicio() {
@@ -10,7 +11,7 @@ function Inicio() {
     return (
         <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: 'auto', gap: '5px', width: '500px'}}>
             <h1>Bem-vindo!</h1>
-            <h3>Menu</h3>
+            <h2>Menu</h2>
             <button
                 style={buttonStyle}
                 className='button-padrao'
@@ -27,6 +28,14 @@ function Inicio() {
                 <img src={icone01} alt="Ícone" style={{ width: '40px', height: '40px' }}/>
                 <span>Gerenciar Turmas Registradas</span>
             </button>
+            <button
+                style={{...buttonStyle, fontSize: '23px'}}
+                className='button-padrao'
+                onClick={() => navigate('/turmas')}
+                >
+                <img src={icone09} alt="Ícone" style={{ width: '50px', height: '50px' }}/>
+                <span>Consultar Métricas</span>
+            </button>
 
         </div>
     );
@@ -42,7 +51,7 @@ const buttonStyle = {
     borderRadius: '8px',
     backgroundColor: '#cbe0f9',
     color: 'black',
-    fontSize: '16px',
+    fontSize: '20px',
     fontWeight: '600',
     width: '100%',
     cursor: 'pointer',
