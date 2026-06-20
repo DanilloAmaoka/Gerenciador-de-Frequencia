@@ -15,15 +15,16 @@ function Metricas() {
     
     const [alunos, setAlunos] = useState([]); 
     const [carregando, setCarregando] = useState(false);
-    const [dataChamada, setDataChamada] = useState(new Date().toISOString().substring(0, 7)); // Formato: AAAA-MM
+    const [dataChamada, setDataChamada] = useState(new Date().toISOString().substring(0, 7));
     
-    // --- NOVOS ESTADOS PARA AS OPÇÕES DE ANÁLISE ---
-    const [modoAnalise, setModoAnalise] = useState("mes"); // "mes" | "media" | "periodo"
+    const [modoAnalise, setModoAnalise] = useState("mes");
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
-    const [totalDiasLetivos, setTotalDiasLetivos] = useState(0); // Conta quantos dias de aula existiram no filtro
+    const [totalDiasLetivos, setTotalDiasLetivos] = useState(0);
 
     const [alunoSelecionado, setAlunoSelecionado] = useState(null);
+
+    const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString()); // Começa em "2026"
 
     const formatarNovaData = (dataISO) => {
         if (!dataISO) return "";
@@ -50,25 +51,28 @@ function Metricas() {
                     const chamadasRef = collection(db, "turmas", idTurma, "chamadas");
                     const chamadasSnapshot = await getDocs(chamadasRef);
 
-                    // Criamos um mapa para guardar o ARRAY de datas de falta de cada um
-                    const registroDatasFaltas = {};
+                    const contadorFaltas = {};
                     listaNomesAlunos.forEach(nome => {
-                        registroDatasFaltas[nome] = []; // Começa vazio para todo mundo
+                        contadorFaltas[nome] = 0;
                     });
 
                     let diasContados = 0;
 
                     chamadasSnapshot.forEach(docSnap => {
                         const dadosChamada = docSnap.data();
-                        const dataDoc = dadosChamada.data; // ex: "2026-06-19"
+                        const dataDoc = dadosChamada.data;
                         const faltasDoDia = dadosChamada.faltas || [];
 
                         let correspondeAoFiltro = false;
 
                         if (modoAnalise === "mes") {
-                            if (dataDoc && dataDoc.startsWith(dataChamada)) correspondeAoFiltro = true;
+                            if (dataDoc && dataDoc.startsWith(dataChamada)) {
+                                correspondeAoFiltro = true;
+                            }
                         } else if (modoAnalise === "media") {
-                            correspondeAoFiltro = true;
+                            if (dataDoc && dataDoc.startsWith(anoSelecionado)) {
+                                correspondeAoFiltro = true;
+                            }
                         } else if (modoAnalise === "periodo") {
                             if (dataDoc && dataInicio && dataFim) {
                                 correspondeAoFiltro = dataDoc >= dataInicio && dataDoc <= dataFim;
@@ -78,9 +82,8 @@ function Metricas() {
                         if (correspondeAoFiltro) {
                             diasContados += 1;
                             faltasDoDia.forEach(nomeAluno => {
-                                if (registroDatasFaltas[nomeAluno] !== undefined) {
-                                    // Adiciona a data na lista de faltas desse aluno específico
-                                    registroDatasFaltas[nomeAluno].push(dataDoc);
+                                if (contadorFaltas[nomeAluno] !== undefined) {
+                                    contadorFaltas[nomeAluno] += 1;
                                 }
                             });
                         }
@@ -89,31 +92,25 @@ function Metricas() {
                     setTotalDiasLetivos(diasContados);
 
                     const alunosEstruturados = listaNomesAlunos.map(nome => {
-                        // Ordena as datas das faltas da mais antiga para a mais recente
-                        const datasOrdenadas = registroDatasFaltas[nome].sort();
-
                         return {
                             nome: nome,
-                            quantidadeFaltas: datasOrdenadas.length,
-                            datasFaltas: datasOrdenadas // <--- LISTA DE DATAS SALVA AQUI
+                            quantidadeFaltas: contadorFaltas[nome]
                         };
                     });
-
                     alunosEstruturados.sort((a, b) => b.quantidadeFaltas - a.quantidadeFaltas);
+                    
                     setAlunos(alunosEstruturados);
-                    setAlunoSelecionado(null); // Reseta o clique se mudar a turma ou o filtro
-                } else {
-                    setAlunos([]);
                 }
+                
             } catch (error) {
-                console.error("Erro ao calcular métricas:", error);
+                console.error("Erro ao buscar dados do banco:", error);
             } finally {
                 setCarregando(false);
             }
         };
 
         buscarMetricasFaltas();
-    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim]);
+    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim, anoSelecionado]);
 
     return (
         <div style={style.containerPrincipal}>
@@ -125,8 +122,6 @@ function Metricas() {
             </div>
             <hr />
             <div style={{display: 'flex', flexDirection: 'row', height: '540px', width: '100%', gap: '2px'}}>
-                
-                {/* LISTA DE TURMAS */}
                 <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '5px'}}>
                     <h2>Turmas</h2>
                     <div style={style.containerTurmas}>
@@ -142,8 +137,6 @@ function Metricas() {
                         ))}
                     </div>
                 </div>
-
-                {/* LISTA DE ALUNOS COM PREENCHIMENTO BASEADO NAS OPÇÕES */}
                 <div style={{display: 'flex', flexDirection: 'column', width: '700px', gap: '5px'}}>
                     <h2>Alunos</h2>
                     <div style={style.containerConteudoTurmas}>
@@ -175,7 +168,6 @@ function Metricas() {
                                                 ? `linear-gradient(to right, ${corPreenchimento} ${porcentagem}%, #ffffff ${porcentagem}%)`
                                                 : '#ffffff';
 
-                                            // Verifica se este aluno é o selecionado atual para dar um leve destaque na borda
                                             const estaSelecionado = alunoSelecionado?.nome === aluno.nome;
 
                                             return (
@@ -183,7 +175,6 @@ function Metricas() {
                                                     key={index}
                                                     className='button-padrao'
                                                     onClick={() => {
-                                                        // Se clicar no que já está selecionado, limpa. Se não, guarda o objeto do aluno inteiro.
                                                         setAlunoSelecionado(estaSelecionado ? null : aluno);
                                                     }}
                                                     style={{
@@ -231,13 +222,9 @@ function Metricas() {
                         )}
                     </div>
                 </div>
-
-                {/* PAINEL LATERAL DE OPÇÕES DE ANÁLISE ESTILIZADO */}
                 <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '10px', paddingLeft: '10px'}}>
                     <h2>Opções de Análise</h2>
                     <div style={style.containerTurmas}>
-                        
-                        {/* Botão Opção 1: Mês Específico */}
                         <button 
                             onClick={() => setModoAnalise("mes")}
                             style={{
@@ -294,8 +281,6 @@ function Metricas() {
                                 </div>
                             </div>
                         )}
-
-                        {/* Botão Opção 2: Média Total Histórica */}
                         <button 
                             onClick={() => setModoAnalise("media")}
                             style={{
@@ -304,10 +289,33 @@ function Metricas() {
                                 backgroundColor: modoAnalise === "media" ? "#e0d6ff" : "#f8f9fa"
                             }}
                         >
-                            📊 Média Total Histórica
+                            📊 Analisar por Ano
                         </button>
 
-                        {/* Botão Opção 3: Entre Datas */}
+                        {modoAnalise === "media" && (
+                            <div style={style.boxConfigInternoInput}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#555' }}>Escolha o Ano Letivo:</label>
+                                    <select
+                                        value={anoSelecionado}
+                                        onChange={(e) => setAnoSelecionado(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '8px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #ccc',
+                                            fontSize: '14px',
+                                            backgroundColor: '#fff',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <option value="2026">2026</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2024">2024</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
                         <button 
                             onClick={() => setModoAnalise("periodo")}
                             style={{
@@ -345,8 +353,8 @@ function Metricas() {
                             backgroundColor: '#ffffff',
                             border: '1px solid #ddd',
                             borderRadius: '15px',
-                            height: '180px', // Altura fixa para caber no layout lateral
-                            overflowY: 'auto' // Se tiver muitas datas, cria uma barra de rolagem interna limpa
+                            height: '180px',
+                            overflowY: 'auto'
                         }}>
                             {alunoSelecionado ? (
                                 <>
