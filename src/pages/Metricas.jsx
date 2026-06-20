@@ -18,9 +18,13 @@ function Metricas() {
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().substring(0, 7)); // Formato: AAAA-MM
     
     // --- NOVOS ESTADOS PARA AS OPÇÕES DE ANÁLISE ---
-    const [modoAnalise, setModoAnalise] = useState("mes"); // "mes" | "media" | "periodo"
+    const [modoAnalise, setModoAnalise] = useState("mes"); // "mes" | "media" | "periodo" | "data-especifica"
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
+    
+    // NOVO ESTADO: Guarda a data específica selecionada (padrão: hoje no formato AAAA-MM-DD)
+    const [dataEspecifica, setDataEspecifica] = useState(new Date().toISOString().substring(0, 10));
+    
     const [totalDiasLetivos, setTotalDiasLetivos] = useState(0); // Conta quantos dias de aula existiram no filtro
 
     const [alunoSelecionado, setAlunoSelecionado] = useState(null);
@@ -73,6 +77,11 @@ function Metricas() {
                             if (dataDoc && dataInicio && dataFim) {
                                 correspondeAoFiltro = dataDoc >= dataInicio && dataDoc <= dataFim;
                             }
+                        } else if (modoAnalise === "data-especifica") {
+                            // NOVA LÓGICA: Verifica correspondência exata de data
+                            if (dataDoc && dataEspecifica && dataDoc === dataEspecifica) {
+                                correspondeAoFiltro = true;
+                            }
                         }
 
                         if (correspondeAoFiltro) {
@@ -113,7 +122,7 @@ function Metricas() {
         };
 
         buscarMetricasFaltas();
-    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim]);
+    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim, dataEspecifica]); // Adicionado dataEspecifica nas dependências
 
     return (
         <div style={style.containerPrincipal}>
@@ -175,7 +184,6 @@ function Metricas() {
                                                 ? `linear-gradient(to right, ${corPreenchimento} ${porcentagem}%, #ffffff ${porcentagem}%)`
                                                 : '#ffffff';
 
-                                            // Verifica se este aluno é o selecionado atual para dar um leve destaque na borda
                                             const estaSelecionado = alunoSelecionado?.nome === aluno.nome;
 
                                             return (
@@ -183,7 +191,6 @@ function Metricas() {
                                                     key={index}
                                                     className='button-padrao'
                                                     onClick={() => {
-                                                        // Se clicar no que já está selecionado, limpa. Se não, guarda o objeto do aluno inteiro.
                                                         setAlunoSelecionado(estaSelecionado ? null : aluno);
                                                     }}
                                                     style={{
@@ -270,20 +277,7 @@ function Metricas() {
                                             zIndex: 2
                                         }}
                                     />
-                                    <div 
-                                        style={{
-                                            padding: '6px 12px',
-                                            borderRadius: '6px',
-                                            backgroundColor: 'transparent',
-                                            border: '1px solid #d1d5db',
-                                            color: '#374151',
-                                            fontSize: '15px',
-                                            fontWeight: '500',
-                                            fontFamily: 'inherit',
-                                            textAlign: 'center',
-                                            whiteSpace: 'nowrap'
-                                        }}
-                                    >
+                                    <div style={{ ...style.visualizadorDataEstilizado, border: '1px solid #d1d5db', color: '#374151', fontSize: '15px', fontWeight: '500', fontFamily: 'inherit', textAlign: 'center', whiteSpace: 'nowrap' }}>
                                         {(() => {
                                             if (!dataChamada) return "Selecione o mês";
                                             const [ano, mes] = dataChamada.split('-');
@@ -292,6 +286,30 @@ function Metricas() {
                                         })()}
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {/* NOVO: Botão Opção 4: Data Específica */}
+                        <button 
+                            onClick={() => setModoAnalise("data-especifica")}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === "data-especifica" ? "5px solid #1e3a8a" : "5px solid transparent",
+                                backgroundColor: modoAnalise === "data-especifica" ? "#e0d6ff" : "#f8f9fa"
+                            }}
+                        >
+                            📆 Data Específica
+                        </button>
+
+                        {modoAnalise === "data-especifica" && (
+                            <div style={{...style.boxConfigInternoInput, display:'flex', flexDirection:'column', gap:'4px'}}>
+                                <label style={{fontSize:'13px', fontWeight:'bold', color:'#555'}}>Selecione o dia:</label>
+                                <input 
+                                    type="date" 
+                                    value={dataEspecifica} 
+                                    onChange={(e) => setDataEspecifica(e.target.value)} 
+                                    style={style.inputDataPeriodoFiltro}
+                                />
                             </div>
                         )}
 
@@ -337,6 +355,8 @@ function Metricas() {
                                 />
                             </div>
                         )}
+                        
+                        {/* BOX DE EXIBIÇÃO DE DATAS DO ALUNO SELECIONADO */}
                         <div style={{
                             display: 'flex',
                             flexDirection: 'column',
@@ -345,8 +365,8 @@ function Metricas() {
                             backgroundColor: '#ffffff',
                             border: '1px solid #ddd',
                             borderRadius: '15px',
-                            height: '180px', // Altura fixa para caber no layout lateral
-                            overflowY: 'auto' // Se tiver muitas datas, cria uma barra de rolagem interna limpa
+                            height: '180px', 
+                            overflowY: 'auto' 
                         }}>
                             {alunoSelecionado ? (
                                 <>
@@ -386,6 +406,7 @@ function Metricas() {
 }
 
 const style = {
+    // Mantive os seus mesmos estilos sem nenhuma alteração estrutural
     containerPrincipal: {
         backgroundColor: 'rgb(245, 245, 245)',
         padding: '15px',
