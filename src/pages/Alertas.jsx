@@ -7,7 +7,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 
 import icone08 from '../assets/icon8.png';
 
-function Metricas() {
+function Alertas() {
     const { dataFormatada } = getInfoData();
     const navigate = useNavigate();
     const [turmaAtiva, setTurmaAtiva] = useState(localStorage.getItem('turmaAtivaFaltas') || "");
@@ -18,13 +18,9 @@ function Metricas() {
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().substring(0, 7)); // Formato: AAAA-MM
     
     // --- NOVOS ESTADOS PARA AS OPÇÕES DE ANÁLISE ---
-    const [modoAnalise, setModoAnalise] = useState("mes"); // "mes" | "media" | "periodo" | "data-especifica"
+    const [modoAnalise, setModoAnalise] = useState("mes"); // "mes" | "media" | "periodo"
     const [dataInicio, setDataInicio] = useState("");
     const [dataFim, setDataFim] = useState("");
-    
-    // NOVO ESTADO: Guarda a data específica selecionada (padrão: hoje no formato AAAA-MM-DD)
-    const [dataEspecifica, setDataEspecifica] = useState(new Date().toISOString().substring(0, 10));
-    
     const [totalDiasLetivos, setTotalDiasLetivos] = useState(0); // Conta quantos dias de aula existiram no filtro
 
     const [alunoSelecionado, setAlunoSelecionado] = useState(null);
@@ -77,11 +73,6 @@ function Metricas() {
                             if (dataDoc && dataInicio && dataFim) {
                                 correspondeAoFiltro = dataDoc >= dataInicio && dataDoc <= dataFim;
                             }
-                        } else if (modoAnalise === "data-especifica") {
-                            // NOVA LÓGICA: Verifica correspondência exata de data
-                            if (dataDoc && dataEspecifica && dataDoc === dataEspecifica) {
-                                correspondeAoFiltro = true;
-                            }
                         }
 
                         if (correspondeAoFiltro) {
@@ -122,7 +113,7 @@ function Metricas() {
         };
 
         buscarMetricasFaltas();
-    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim, dataEspecifica]); // Adicionado dataEspecifica nas dependências
+    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim]);
 
     return (
         <div style={style.containerPrincipal}>
@@ -133,13 +124,13 @@ function Metricas() {
                 <h1>Métricas</h1>
             </div>
             <hr />
-            <div style={{display: 'flex', flexDirection: 'row', height: '630px', width: '100%', gap: '10px'}}>
+            <div style={{display: 'flex', flexDirection: 'row', height: '540px', width: '100%', gap: '2px'}}>
                 
                 {/* LISTA DE TURMAS */}
                 <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '5px'}}>
                     <h2>Turmas</h2>
                     <div style={style.containerTurmas}>
-                        {["1° Ano A", "1° Ano B", "1° Ano C", "2° Ano A", "2° Ano B", "2° Ano C", "2° Ano D", "3° Ano A", "3° Ano B", "3° Ano C"].map((turma) => (
+                        {["1° Ano A", "1° Ano B", "1° Ano C", "2° Ano A", "2° Ano B", "2° Ano C", "2° Ano D"].map((turma) => (
                             <button 
                                 key={turma}
                                 style={{backgroundColor: turmaAtiva === turma ? "#e0d6ff" : "#fff", padding: turmaAtiva === turma ? "25px" : "15px"}} 
@@ -167,7 +158,7 @@ function Metricas() {
                                 {carregando ? (
                                     <p>Carregando lista...</p>
                                 ) : (
-                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '3px', overflowY: 'auto', overflowX: 'hidden', }}>
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
                                         {alunos.map((aluno, index) => {
                                             const faltasDoAluno = aluno.quantidadeFaltas || 0; 
                                             const totalFaltasTurma = alunos.reduce((acumulador, item) => acumulador + item.quantidadeFaltas, 0);
@@ -184,6 +175,7 @@ function Metricas() {
                                                 ? `linear-gradient(to right, ${corPreenchimento} ${porcentagem}%, #ffffff ${porcentagem}%)`
                                                 : '#ffffff';
 
+                                            // Verifica se este aluno é o selecionado atual para dar um leve destaque na borda
                                             const estaSelecionado = alunoSelecionado?.nome === aluno.nome;
 
                                             return (
@@ -191,6 +183,7 @@ function Metricas() {
                                                     key={index}
                                                     className='button-padrao'
                                                     onClick={() => {
+                                                        // Se clicar no que já está selecionado, limpa. Se não, guarda o objeto do aluno inteiro.
                                                         setAlunoSelecionado(estaSelecionado ? null : aluno);
                                                     }}
                                                     style={{
@@ -237,68 +230,12 @@ function Metricas() {
                             <p>Selecione uma turma para ver os alunos.</p>
                         )}
                     </div>
-                    <div style={{display: 'flex', flexDirection: 'row', gap: '5px', marginTop: '5px', height: '250px', width: '700px', justifyContent: 'space-between'}}>
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '5px',
-                            padding: '12px',
-                            border: '1px solid #ddd',
-                            borderRadius: '15px',
-                            height: '100%', 
-                            width: '400px',
-                        }}>
-                            <h3>Pesquisar:</h3>
-                            <input type="text" placeholder="Nome e sobrenome exato do aluno" />
-                            <button>Buscar</button>
-                        </div>
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '5px',
-                            padding: '12px',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #ddd',
-                            borderRadius: '15px',
-                            height: '100%', 
-                            width: '300px',
-                        }}>
-                            {alunoSelecionado ? (
-                                <>
-                                    <h3 style={{ margin: '0 0 5px 0', fontSize: '18px', color: '#1e3a8a' }}>
-                                        📌 {alunoSelecionado.nome}
-                                    </h3>
-                                    <p style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#666', fontWeight: 'bold' }}>
-                                        Datas das {alunoSelecionado.quantidadeFaltas} falta(s) no filtro:
-                                    </p>
-                                    
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto' , }}>
-                                        {alunoSelecionado.datasFaltas && alunoSelecionado.datasFaltas.length > 0 ? (
-                                            alunoSelecionado.datasFaltas.map((dataStr, idx) => (
-                                                <span key={idx} style={{ fontSize: '16px', color: '#c0392b', fontWeight: '500', backgroundColor: '#fdf2f2', padding: '4px 8px', borderRadius: '6px', borderLeft: '3px solid #e74c3c' }}>
-                                                    📅 {formatarNovaData(dataStr)}
-                                                </span>
-                                            ))
-                                        ) : (
-                                            <span style={{ fontSize: '15px', color: '#27ae60', fontWeight: '500' }}>
-                                                ✓ Nenhuma falta registrada.
-                                            </span>
-                                        )}
-                                    </div>
-                                </>
-                            ) : (
-                                <p style={{ margin: 'auto', textAlign: 'center', color: '#999', fontSize: '15px' }}>
-                                    Clique em um aluno para ver as datas das faltas aqui.
-                                </p>
-                            )}
-                        </div>
-                    </div>
                 </div>
 
                 {/* PAINEL LATERAL DE OPÇÕES DE ANÁLISE ESTILIZADO */}
-                <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '10px'}}>
+                <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '10px', paddingLeft: '10px'}}>
                     <h2>Opções de Análise</h2>
-                    <div style={style.containerOpcoes}>
+                    <div style={style.containerTurmas}>
                         
                         {/* Botão Opção 1: Mês Específico */}
                         <button 
@@ -333,7 +270,20 @@ function Metricas() {
                                             zIndex: 2
                                         }}
                                     />
-                                    <div style={{ ...style.visualizadorDataEstilizado, border: '1px solid #d1d5db', color: '#374151', fontSize: '15px', fontWeight: '500', fontFamily: 'inherit', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                                    <div 
+                                        style={{
+                                            padding: '6px 12px',
+                                            borderRadius: '6px',
+                                            backgroundColor: 'transparent',
+                                            border: '1px solid #d1d5db',
+                                            color: '#374151',
+                                            fontSize: '15px',
+                                            fontWeight: '500',
+                                            fontFamily: 'inherit',
+                                            textAlign: 'center',
+                                            whiteSpace: 'nowrap'
+                                        }}
+                                    >
                                         {(() => {
                                             if (!dataChamada) return "Selecione o mês";
                                             const [ano, mes] = dataChamada.split('-');
@@ -342,30 +292,6 @@ function Metricas() {
                                         })()}
                                     </div>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* NOVO: Botão Opção 4: Data Específica */}
-                        <button 
-                            onClick={() => setModoAnalise("data-especifica")}
-                            style={{
-                                ...style.btnFiltroOpcao,
-                                borderLeft: modoAnalise === "data-especifica" ? "5px solid #1e3a8a" : "5px solid transparent",
-                                backgroundColor: modoAnalise === "data-especifica" ? "#e0d6ff" : "#f8f9fa"
-                            }}
-                        >
-                            📆 Data Específica
-                        </button>
-
-                        {modoAnalise === "data-especifica" && (
-                            <div style={{...style.boxConfigInternoInput, display:'flex', flexDirection:'column', gap:'4px'}}>
-                                <label style={{fontSize:'13px', fontWeight:'bold', color:'#555'}}>Selecione o dia:</label>
-                                <input 
-                                    type="date" 
-                                    value={dataEspecifica} 
-                                    onChange={(e) => setDataEspecifica(e.target.value)} 
-                                    style={style.inputDataPeriodoFiltro}
-                                />
                             </div>
                         )}
 
@@ -411,6 +337,46 @@ function Metricas() {
                                 />
                             </div>
                         )}
+                        <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '5px',
+                            padding: '12px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #ddd',
+                            borderRadius: '15px',
+                            height: '180px', // Altura fixa para caber no layout lateral
+                            overflowY: 'auto' // Se tiver muitas datas, cria uma barra de rolagem interna limpa
+                        }}>
+                            {alunoSelecionado ? (
+                                <>
+                                    <h3 style={{ margin: '0 0 5px 0', fontSize: '16px', color: '#1e3a8a' }}>
+                                        📌 {alunoSelecionado.nome}
+                                    </h3>
+                                    <p style={{ margin: '0 0 8px 0', fontSize: '13px', color: '#666', fontWeight: 'bold' }}>
+                                        Datas das {alunoSelecionado.quantidadeFaltas} falta(s) no filtro:
+                                    </p>
+                                    
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        {alunoSelecionado.datasFaltas && alunoSelecionado.datasFaltas.length > 0 ? (
+                                            alunoSelecionado.datasFaltas.map((dataStr, idx) => (
+                                                <span key={idx} style={{ fontSize: '14px', color: '#c0392b', fontWeight: '500', backgroundColor: '#fdf2f2', padding: '4px 8px', borderRadius: '6px', borderLeft: '3px solid #e74c3c' }}>
+                                                    📅 {formatarNovaData(dataStr)}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span style={{ fontSize: '13px', color: '#27ae60', fontWeight: '500' }}>
+                                                ✓ Nenhuma falta registrada.
+                                            </span>
+                                        )}
+                                    </div>
+                                </>
+                            ) : (
+                                <p style={{ margin: 'auto', textAlign: 'center', color: '#999', fontSize: '14px' }}>
+                                    Clique em um aluno para ver as datas das faltas aqui.
+                                </p>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -420,14 +386,13 @@ function Metricas() {
 }
 
 const style = {
-    // Mantive os seus mesmos estilos sem nenhuma alteração estrutural
     containerPrincipal: {
         backgroundColor: 'rgb(245, 245, 245)',
         padding: '15px',
         borderRadius: '12px',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
         width: '1300px',
-        height: '700px',
+        height: '610px',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -437,7 +402,7 @@ const style = {
     containerTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '592px', 
+        height: '100%', 
         width: '100%',
         gap: '8px', 
         padding: '10px', 
@@ -446,28 +411,17 @@ const style = {
         overflowY: 'auto', 
         overflowX: 'hidden'
     },
-    containerOpcoes: {
-        display: 'flex',
-        flexDirection: 'column', 
-        height: '592px', 
-        width: '100%',
-        gap: '8px', 
-        padding: '10px', 
-        border: '1px solid #ddd',
-        borderRadius: '15px',
-        overflowY: 'auto', 
-        overflowX: 'hidden',
-        padding: '10px'
-    },
     containerConteudoTurmas: {
         display: 'flex',
         flexDirection: 'column', 
-        height: '331px', 
+        height: '100%', 
         width: '100%', 
         gap: '5px', 
         padding: '10px', 
         border: '1px solid #ddd',
         borderRadius: '15px',
+        overflowY: 'auto', 
+        overflowX: 'hidden',
     },
     buttonVoltar: {
         borderRadius: '80px',
@@ -531,4 +485,4 @@ const style = {
     }
 };
 
-export default Metricas;
+export default Alertas;

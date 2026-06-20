@@ -85,7 +85,7 @@ function Inicio() {
                         backgroundColor: temNotificacaoImportante ? '#fef2f2' : '#fffbeb',
                         height: temNotificacaoImportante ? '100px' : '80px'
                     }}
-                    onClick={() => navigate('/notificacoes')} // Ajuste a rota se necessário
+                    onClick={() => navigate('/alertas')} // Ajuste a rota se necessário
                     onMouseEnter={(e) => handleHoverNotificacao(e, true, temNotificacaoImportante)}
                     onMouseLeave={(e) => handleHoverNotificacao(e, false, temNotificacaoImportante)}
                 >
