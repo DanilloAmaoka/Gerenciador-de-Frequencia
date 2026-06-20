@@ -4,6 +4,7 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import Login from '../pages/Login';
 import Inicio from '../pages/Inicio';
 import Turmas from '../pages/Turmas';
+import Alertas from '../pages/Alertas';
 import CadastrarFaltas from '../pages/CadastrarFaltas';
 import Metricas from '../pages/Metricas';
 
@@ -16,6 +17,7 @@ function AppRoutes() {
         <Route path="/turmas" element={<ProtectedRoute><Turmas /></ProtectedRoute>} />
         <Route path="/cadastrarfaltas" element={<ProtectedRoute><CadastrarFaltas /></ProtectedRoute>} />
         <Route path="/metricas" element={<ProtectedRoute><Metricas /></ProtectedRoute>} />
+        <Route path="/alertas" element={<ProtectedRoute><Alertas /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
