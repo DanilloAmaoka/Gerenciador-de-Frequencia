@@ -2,7 +2,7 @@ import { data, useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
-import { collection, getDocs, query, where, arrayRemove, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, getDocs, setDoc, query, where, arrayRemove, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import icone08 from '../assets/icon8.png'
 
 function CadastrarFaltas() {
@@ -15,6 +15,45 @@ function CadastrarFaltas() {
     localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
     const [iniciarSalvar, setIniciarSalvar] = useState(0);
+
+    const handleSalvarBanco = async () => {
+        if (!turmaAtiva) return;
+
+        try {
+            const turmasRef = collection(db, "turmas");
+            const q = query(turmasRef, where("nome", "==", turmaAtiva));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const idTurma = querySnapshot.docs[0].id;
+
+                // 1. Criamos a referência exata de onde salvar:
+                // turmas -> ID_da_Turma -> chamadas -> Data_Escolhida (ex: 2026-06-19)
+                const chamadaDocRef = doc(db, "turmas", idTurma, "chamadas", dataChamada);
+
+                // 2. Salvamos APENAS a lista de faltas
+                // O { merge: true } garante que se o documento já existir, ele não apaga outros campos soltos
+                await setDoc(chamadaDocRef, {
+                    data: dataChamada,
+                    diaDaSemana: dataChamada === new Date().toISOString().split('T')[0] ? dataFormatada : obterNovoDiaSemana(dataChamada),
+                    faltas: faltantes // Salvando apenas quem faltou!
+                }, { merge: true });
+
+                alert("Faltas salvas com sucesso no histórico da turma!");
+                
+                // 3. Reseta os estados para voltar à tela inicial limpa
+                setFaltantes([]);
+                setIniciarSalvar(0);
+
+            } else {
+                alert("Aviso: Turma não encontrada.");
+            }
+
+        } catch (error) {
+            console.error("Erro ao salvar no Firebase:", error);
+            alert("Erro ao salvar as faltas.");
+        }
+    };
 
     const handleLimparSelecao = () => {
         setFaltantes([]);
@@ -427,6 +466,7 @@ function CadastrarFaltas() {
 
                         <button
                             className="button-padrao"
+                            onClick={handleSalvarBanco}
                             style={{
                                 ...style.buttonConfirmar_CancelarSalvamento,
                                 backgroundColor: '#4caf50'
