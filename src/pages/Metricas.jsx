@@ -29,6 +29,8 @@ function Metricas() {
 
     const [alunoSelecionado, setAlunoSelecionado] = useState(null);
 
+    const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString());
+
     const formatarNovaData = (dataISO) => {
         if (!dataISO) return "";
         const [ano, mes, dia] = dataISO.split('-');
@@ -41,6 +43,7 @@ function Metricas() {
             
             setCarregando(true);
             try {
+                // 1. Busca a turma para pegar o ID longo e os nomes dos alunos
                 const turmasRef = collection(db, "turmas");
                 const q = query(turmasRef, where("nome", "==", turmaAtiva));
                 const querySnapshot = await getDocs(q);
@@ -51,45 +54,46 @@ function Metricas() {
                     const dadosTurma = turmaDocSnap.data();
                     const listaNomesAlunos = dadosTurma.alunos || [];
 
+                    // 2. Busca todas as chamadas da subcoleção daquela turma
                     const chamadasRef = collection(db, "turmas", idTurma, "chamadas");
                     const chamadasSnapshot = await getDocs(chamadasRef);
 
-                    // Criamos um mapa para guardar o ARRAY de datas de falta de cada um
-                    const registroDatasFaltas = {};
+                    // 3. Prepara o mapa contador de faltas zerado para cada aluno
+                    const contadorFaltas = {};
                     listaNomesAlunos.forEach(nome => {
-                        registroDatasFaltas[nome] = []; // Começa vazio para todo mundo
+                        contadorFaltas[nome] = 0;
                     });
 
                     let diasContados = 0;
 
+                    // 4. Varre os documentos de chamadas aplicando o filtro escolhido
                     chamadasSnapshot.forEach(docSnap => {
                         const dadosChamada = docSnap.data();
-                        const dataDoc = dadosChamada.data; // ex: "2026-06-19"
+                        const dataDoc = dadosChamada.data; // Formato: AAAA-MM-DD
                         const faltasDoDia = dadosChamada.faltas || [];
 
                         let correspondeAoFiltro = false;
 
                         if (modoAnalise === "mes") {
-                            if (dataDoc && dataDoc.startsWith(dataChamada)) correspondeAoFiltro = true;
+                            if (dataDoc && dataDoc.startsWith(dataChamada)) {
+                                correspondeAoFiltro = true;
+                            }
                         } else if (modoAnalise === "media") {
-                            correspondeAoFiltro = true;
+                            // Filtra se a data do documento começar com o ano letivo selecionado (ex: "2026")
+                            if (dataDoc && dataDoc.startsWith(anoSelecionado)) {
+                                correspondeAoFiltro = true;
+                            }
                         } else if (modoAnalise === "periodo") {
                             if (dataDoc && dataInicio && dataFim) {
                                 correspondeAoFiltro = dataDoc >= dataInicio && dataDoc <= dataFim;
                             }
-                        } else if (modoAnalise === "data-especifica") {
-                            // NOVA LÓGICA: Verifica correspondência exata de data
-                            if (dataDoc && dataEspecifica && dataDoc === dataEspecifica) {
-                                correspondeAoFiltro = true;
-                            }
                         }
 
                         if (correspondeAoFiltro) {
-                            diasContados += 1;
+                            diasContados += 1; // Soma mais um dia letivo válido encontrado
                             faltasDoDia.forEach(nomeAluno => {
-                                if (registroDatasFaltas[nomeAluno] !== undefined) {
-                                    // Adiciona a data na lista de faltas desse aluno específico
-                                    registroDatasFaltas[nomeAluno].push(dataDoc);
+                                if (contadorFaltas[nomeAluno] !== undefined) {
+                                    contadorFaltas[nomeAluno] += 1;
                                 }
                             });
                         }
@@ -97,32 +101,29 @@ function Metricas() {
 
                     setTotalDiasLetivos(diasContados);
 
+                    // 5. Estrutura o array final de alunos com o total de faltas calculado
                     const alunosEstruturados = listaNomesAlunos.map(nome => {
-                        // Ordena as datas das faltas da mais antiga para a mais recente
-                        const datasOrdenadas = registroDatasFaltas[nome].sort();
-
                         return {
                             nome: nome,
-                            quantidadeFaltas: datasOrdenadas.length,
-                            datasFaltas: datasOrdenadas // <--- LISTA DE DATAS SALVA AQUI
+                            quantidadeFaltas: contadorFaltas[nome]
                         };
                     });
 
+                    // 6. Ordena o ranking: quem tem mais faltas vai para o topo
                     alunosEstruturados.sort((a, b) => b.quantidadeFaltas - a.quantidadeFaltas);
+                    
                     setAlunos(alunosEstruturados);
-                    setAlunoSelecionado(null); // Reseta o clique se mudar a turma ou o filtro
-                } else {
-                    setAlunos([]);
-                }
+                } // <--- Chave do "if (!querySnapshot.empty)" corrigida aqui!
+                
             } catch (error) {
-                console.error("Erro ao calcular métricas:", error);
+                console.error("Erro ao buscar dados do banco:", error);
             } finally {
                 setCarregando(false);
             }
         };
 
         buscarMetricasFaltas();
-    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim, dataEspecifica]); // Adicionado dataEspecifica nas dependências
+    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim, anoSelecionado]); // Adicionado dataEspecifica nas dependências
 
     return (
         <div style={style.containerPrincipal}>
@@ -294,11 +295,37 @@ function Metricas() {
                         </div>
                     </div>
                 </div>
+                
 
                 {/* PAINEL LATERAL DE OPÇÕES DE ANÁLISE ESTILIZADO */}
                 <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '10px'}}>
                     <h2>Opções de Análise</h2>
                     <div style={style.containerOpcoes}>
+
+                        {/* NOVO: Botão Opção 4: Data Específica */}
+                        <button 
+                            onClick={() => setModoAnalise("data-especifica")}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === "data-especifica" ? "5px solid #1e3a8a" : "5px solid transparent",
+                                backgroundColor: modoAnalise === "data-especifica" ? "#e0d6ff" : "#f8f9fa"
+                            }}
+                        >
+                            📆 Analisar por Data
+                        </button>
+
+                        {modoAnalise === "data-especifica" && (
+                            <div style={{...style.boxConfigInternoInput, display:'flex', flexDirection:'column', gap:'4px'}}>
+                                <label style={{fontSize:'13px', fontWeight:'bold', color:'#555'}}>Selecione o dia:</label>
+                                <input 
+                                    type="date" 
+                                    value={dataEspecifica} 
+                                    onChange={(e) => setDataEspecifica(e.target.value)} 
+                                    style={style.inputDataPeriodoFiltro}
+                                />
+                            </div>
+                        )}
+
                         
                         {/* Botão Opção 1: Mês Específico */}
                         <button 
@@ -309,7 +336,7 @@ function Metricas() {
                                 backgroundColor: modoAnalise === "mes" ? "#e0d6ff" : "#f8f9fa"
                             }}
                         >
-                            📅 Analisar por Mês
+                            📊 Histórico Mensal
                         </button>
 
                         {modoAnalise === "mes" && (
@@ -345,30 +372,6 @@ function Metricas() {
                             </div>
                         )}
 
-                        {/* NOVO: Botão Opção 4: Data Específica */}
-                        <button 
-                            onClick={() => setModoAnalise("data-especifica")}
-                            style={{
-                                ...style.btnFiltroOpcao,
-                                borderLeft: modoAnalise === "data-especifica" ? "5px solid #1e3a8a" : "5px solid transparent",
-                                backgroundColor: modoAnalise === "data-especifica" ? "#e0d6ff" : "#f8f9fa"
-                            }}
-                        >
-                            📆 Data Específica
-                        </button>
-
-                        {modoAnalise === "data-especifica" && (
-                            <div style={{...style.boxConfigInternoInput, display:'flex', flexDirection:'column', gap:'4px'}}>
-                                <label style={{fontSize:'13px', fontWeight:'bold', color:'#555'}}>Selecione o dia:</label>
-                                <input 
-                                    type="date" 
-                                    value={dataEspecifica} 
-                                    onChange={(e) => setDataEspecifica(e.target.value)} 
-                                    style={style.inputDataPeriodoFiltro}
-                                />
-                            </div>
-                        )}
-
                         {/* Botão Opção 2: Média Total Histórica */}
                         <button 
                             onClick={() => setModoAnalise("media")}
@@ -378,8 +381,33 @@ function Metricas() {
                                 backgroundColor: modoAnalise === "media" ? "#e0d6ff" : "#f8f9fa"
                             }}
                         >
-                            📊 Média Total Histórica
+                            📊 Histórico Anual
                         </button>
+
+                        {modoAnalise === "media" && (
+                            <div style={style.boxConfigInternoInput}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                    <label style={{ fontSize: '13px', fontWeight: 'bold', color: '#555' }}>Escolha o Ano Letivo:</label>
+                                    <select
+                                        value={anoSelecionado}
+                                        onChange={(e) => setAnoSelecionado(e.target.value)}
+                                        style={{
+                                            width: '100%',
+                                            padding: '8px',
+                                            borderRadius: '6px',
+                                            border: '1px solid #ccc',
+                                            fontSize: '14px',
+                                            backgroundColor: '#fff',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <option value="2026">2026</option>
+                                        <option value="2025">2025</option>
+                                        <option value="2024">2024</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Botão Opção 3: Entre Datas */}
                         <button 
