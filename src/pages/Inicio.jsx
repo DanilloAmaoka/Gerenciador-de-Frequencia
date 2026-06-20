@@ -81,7 +81,7 @@ function Inicio() {
                     style={{
                         ...buttonNotificacaoStyle,
                         // Gatilho: Se for importante, aplica uma borda ou fundo mais chamativo
-                        border: temNotificacaoImportante ? '4px solid #ef4444' : '1px solid #f59e0b',
+                        border: temNotificacaoImportante ? '3px solid #ef4444' : '1px solid #f59e0b',
                         backgroundColor: temNotificacaoImportante ? '#fef2f2' : '#fffbeb',
                         height: temNotificacaoImportante ? '100px' : '80px'
                     }}
@@ -101,7 +101,7 @@ function Inicio() {
                         ...buttonTextStyle,
                         color: temNotificacaoImportante ? '#991b1b' : '#92400e'
                     }}>
-                        Central de Notificações
+                        Alertas
                     </span>
                 </button>
             </div>
