@@ -15,6 +15,9 @@ function CadastrarFaltas() {
     localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
     const [iniciarSalvar, setIniciarSalvar] = useState(0);
+    
+    // NOVO: Estado para controlar a exibição da mensagem de sucesso na tela
+    const [mensagemSucesso, setMensagemSucesso] = useState(false);
 
     const handleSalvarBanco = async () => {
         if (!turmaAtiva) return;
@@ -26,24 +29,25 @@ function CadastrarFaltas() {
 
             if (!querySnapshot.empty) {
                 const idTurma = querySnapshot.docs[0].id;
-
-                // 1. Criamos a referência exata de onde salvar:
-                // turmas -> ID_da_Turma -> chamadas -> Data_Escolhida (ex: 2026-06-19)
                 const chamadaDocRef = doc(db, "turmas", idTurma, "chamadas", dataChamada);
 
-                // 2. Salvamos APENAS a lista de faltas
-                // O { merge: true } garante que se o documento já existir, ele não apaga outros campos soltos
                 await setDoc(chamadaDocRef, {
                     data: dataChamada,
                     diaDaSemana: dataChamada === new Date().toISOString().split('T')[0] ? dataFormatada : obterNovoDiaSemana(dataChamada),
-                    faltas: faltantes // Salvando apenas quem faltou!
+                    faltas: faltantes 
                 }, { merge: true });
 
-                alert("Faltas salvas com sucesso no histórico da turma!");
+                // MODIFICADO: Ativa a mensagem bonita na tela ao invés do alert
+                setMensagemSucesso(true);
                 
-                // 3. Reseta os estados para voltar à tela inicial limpa
+                // Limpa os dados da chamada imediatamente nos bastidores
                 setFaltantes([]);
-                setIniciarSalvar(0);
+
+                // Aguarda 3 segundos exibindo a animação/mensagem antes de voltar à tela inicial
+                setTimeout(() => {
+                    setMensagemSucesso(false);
+                    setIniciarSalvar(0);
+                }, 3000);
 
             } else {
                 alert("Aviso: Turma não encontrada.");
@@ -70,20 +74,31 @@ function CadastrarFaltas() {
         return `${dia}/${mes}/${ano}`;
     };
 
-    // 2. Traduz o dia da semana da nova data escolhida
     const obterNovoDiaSemana = (dataISO) => {
         const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-        // O 'T12:00:00' impede que o fuso horário mude o dia para ontem
         const data = new Date(dataISO + 'T12:00:00'); 
         return dias[data.getDay()];
     };
 
-
     const alternarFalta = (nomeAluno) => {
+        setFaltantes(prev => {
+            const existe = prev.some(item => item.nome === nomeAluno);
+            if (existe) {
+                return prev.filter(item => item.nome !== nomeAluno);
+            } else {
+                return [...prev, { nome: nomeAluno, tipo: 'regular' }];
+            }
+        });
+    };
+
+    const alternarJustificativa = (nomeAluno) => {
         setFaltantes(prev => 
-            prev.includes(nomeAluno) 
-                ? prev.filter(a => a !== nomeAluno)
-                : [...prev, nomeAluno]
+            prev.map(item => {
+                if (item.nome === nomeAluno) {
+                    return { ...item, tipo: item.tipo === 'regular' ? 'justificada' : 'regular' };
+                }
+                return item;
+            })
         );
     };
     
@@ -130,63 +145,16 @@ function CadastrarFaltas() {
                     <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '5px'}}>
                         <h2>Turmas</h2>
                         <div style={style.containerTurmas}>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "1° Ano A" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "1° Ano A" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("1° Ano A")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>1° Ano A</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "1° Ano B" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "1° Ano B" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("1° Ano B")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>1° Ano B</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "1° Ano C" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "1° Ano C" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("1° Ano C")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>1° Ano C</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "2° Ano A" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano A" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("2° Ano A")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>2° Ano A</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "2° Ano B" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano B" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("2° Ano B")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>2° Ano B</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "2° Ano C" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano C" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("2° Ano C")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>2° Ano C</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "2° Ano D" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano D" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("2° Ano D")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>2° Ano D</strong></p>
-                            </button>
-                            <button 
-                                style={{backgroundColor: turmaAtiva === "2° Ano E" ? "#e0d6ff" : "#fff", padding: turmaAtiva === "2° Ano E" ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva("2° Ano E")}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>2° Ano E</strong></p>
-                            </button>
-
+                            {["1° Ano A", "1° Ano B", "1° Ano C", "2° Ano A", "2° Ano B", "2° Ano C", "2° Ano D", "2° Ano E"].map((turma) => (
+                                <button 
+                                    key={turma}
+                                    style={{backgroundColor: turmaAtiva === turma ? "#e0d6ff" : "#fff", padding: turmaAtiva === turma ? "25px" : "15px"}} 
+                                    className='button-turma'
+                                    onClick={() => setTurmaAtiva(turma)}
+                                >
+                                    <p style={{fontSize: '23px'}}><strong>{turma}</strong></p>
+                                </button>
+                            ))}
                         </div>
                     </div>
                     <div style={{display: 'flex', flexDirection: 'column', width: '900px', gap: '5px'}}>
@@ -207,7 +175,7 @@ function CadastrarFaltas() {
                                             gap: '4px'
                                         }}>
                                             {alunos.map((aluno, index) => {
-                                                const estaFaltando = faltantes.includes(aluno);
+                                                const estaFaltando = faltantes.some(item => item.nome === aluno);
 
                                                 return (
                                                     <li 
@@ -260,7 +228,7 @@ function CadastrarFaltas() {
                                                     e.currentTarget.style.color = '#666';
                                                     e.currentTarget.style.borderColor = '#d0d7de';
                                                 }}>
-                                                    + Cadastrar alunos nesta turma
+                                                + Cadastrar alunos nesta turma
                                             </button>
                                         </ul>
                                     )}
@@ -269,13 +237,12 @@ function CadastrarFaltas() {
                                 <p>Selecione uma turma para ver os alunos.</p>
                             )}
                         </div>
-                    <div    style={style.abaSalvar}>
+                    <div style={style.abaSalvar}>
                             <p style={{ margin: '0 0 15px 0', textAlign: 'left', fontSize: '18px' }}>
                                 Você marcou <strong>{faltantes.length}</strong> falta(s).
                             </p>
 
                             <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'flex-start' }}>
-                                
                                 <button 
                                     className='button-padrao'
                                     onClick={handleLimparSelecao}
@@ -309,14 +276,25 @@ function CadastrarFaltas() {
                                 >
                                     Confirmar Chamada de Hoje
                                 </button>
-
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         ) : (
-            <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '560px', width: '890px', gap: '10px'}}>
+            <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '590px', width: '890px', gap: '10px', position: 'relative'}}>
+                
+                {/* NOVO: Banner interno de sucesso condicional com desfoque de fundo */}
+                {mensagemSucesso && (
+                    <div style={style.overlaySucesso}>
+                        <div style={style.cardSucesso}>
+                            <div style={style.iconeSucesso}>✓</div>
+                            <h2>Sucesso!</h2>
+                            <p>As faltas foram gravadas no histórico da turma.</p>
+                        </div>
+                    </div>
+                )}
+
                 <div style={{display: 'flex', flexDirection: 'row', gap: '15px', alignContent: 'center', alignItems: 'center'}}>
                     <button className='button-padrao' style={style.buttonVoltar}
                         onClick={()=> navigate(-1)}
@@ -409,6 +387,8 @@ function CadastrarFaltas() {
                         </div>
                     </div>
                     <h3>Lista de faltantes ({faltantes.length} {faltantes.length === 1 ? 'aluno' : 'alunos'})</h3>
+                    <p style={{ fontSize: '14px', color: '#666', margin: '0 0 5px 0' }}>💡 Clique em um aluno para alternar para Falta Justificada.</p>
+                    
                     <div style={{
                             ...style.containerConteudoTurmas,
                             width:'100%',
@@ -426,20 +406,35 @@ function CadastrarFaltas() {
                                     gap: '5px'
                                 }}
                             >
-                                {faltantes.map((aluno, index) => (
-                                <li
-                                    key={index}
-                                    style={{
-                                        padding: '9px',
-                                        borderRadius: '10px',
-                                        backgroundColor: '#fff5f5',
-                                        borderLeft: '5px solid #ff5252',
-                                        fontSize: '17px'
-                                    }}
-                                >
-                                    {index + 1}. {aluno}
-                                </li>
-                                ))}
+                                {faltantes.map((item, index) => {
+                                    const ehJustificada = item.tipo === 'justificada';
+                                    
+                                    return (
+                                        <li
+                                            key={index}
+                                            onClick={() => alternarJustificativa(item.nome)}
+                                            style={{
+                                                padding: '9px',
+                                                borderRadius: '10px',
+                                                cursor: 'pointer',
+                                                backgroundColor: ehJustificada ? '#e8f5e9' : '#fff5f5',
+                                                borderLeft: ehJustificada ? '5px solid #4caf50' : '5px solid #ff5252',
+                                                fontSize: '17px',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                transition: 'all 0.2s'
+                                            }}
+                                        >
+                                            <span style={{ color: ehJustificada ? '#2e7d32' : '#c62828', fontWeight: '500' }}>
+                                                {index + 1}. {item.nome}
+                                            </span>
+                                            <span style={{ fontSize: '13px', color: ehJustificada ? '#2e7d32' : '#c62828', fontStyle: 'italic' }}>
+                                                {ehJustificada ? 'Justificada ✓' : 'Falta Regular'}
+                                            </span>
+                                        </li>
+                                    );
+                                })}
                             </ul>
                             ) : (
                             <p>Nenhum aluno foi marcado como faltante.</p>
@@ -475,30 +470,29 @@ function CadastrarFaltas() {
                             Confirmar e Salvar
                         </button>
                     </div>
-                    </div>
+                </div>
             </div>
         )  
     );
 }
 
+// ADICIONE ESTES NOVOS ESTILOS NO SEU OBJETO DE ESTILOS EXISTENTE:
 const style = {
+    // ... Seus estilos anteriores continuam aqui ...
+
     containerPrincipal: {
         backgroundColor: 'rgb(245, 245, 245)',
         padding: '15px',
         borderRadius: '12px',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
-
         width: '1200px',
         height: '610px',
-
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
         gap: '4px',
-
         transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
     },
-
     containerTurmas: {
         display: 'flex',
         flexDirection: 'column', 
@@ -511,7 +505,6 @@ const style = {
         overflowY: 'auto', 
         overflowX: 'hidden'
     },
-
     containerConteudoTurmas: {
         display: 'flex',
         flexDirection: 'column', 
@@ -524,7 +517,6 @@ const style = {
         overflowY: 'auto', 
         overflowX: 'hidden'
     },
-
     itemAlunoStyle: {
         padding: '12px',
         borderBottom: '1px solid #eee',
@@ -532,7 +524,6 @@ const style = {
         cursor: "default",
         borderRadius: '8px'
     },
-
     buttonVoltar: {
         borderRadius: '80px',
         backgroundColor: 'transparent',
@@ -542,7 +533,6 @@ const style = {
         transition: 'all 0.2s ease-in-out',
         border: 'none'
     },
-
     abaSalvar: {
         padding: '15px',
         backgroundColor: '#fff3f3',
@@ -556,7 +546,6 @@ const style = {
         width: '100%',
         boxSizing: 'border-box'
     },
-
     buttonConfirmar: {
         backgroundColor: '#ff5252',
         color: 'white',
@@ -566,22 +555,6 @@ const style = {
         cursor: 'pointer',
         fontWeight: 'bold'
     },
-
-    inputData: {
-        appearance: 'none',
-        WebkitAppearance: 'none',
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        padding: '6px 12px',
-        borderRadius: '6px',
-        fontSize: '13px',
-        fontWeight: '500',
-        backgroundColor: 'transparent',
-        border: '1px solid #d1d5db', 
-        color: '#374151',  
-        transition: 'all 0.15s ease'
-    },
-
     buttonAdicionarAluno: {
         marginTop: '12px',
         padding: '10px 14px',
@@ -594,7 +567,6 @@ const style = {
         transition: 'all 0.2s ease',
         width: '100%',
     },
-
     buttonConfirmar_CancelarSalvamento: {
         display: 'flex',
         alignItems: 'center',
@@ -608,6 +580,49 @@ const style = {
         cursor: 'pointer',
         transition: 'all 0.2s ease',
         height: '35px'
+    },
+
+    // ESTES SÃO OS ESTILOS DO POPUP DE SUCESSO:
+    overlaySucesso: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(255, 255, 255, 0.75)',
+        backdropFilter: 'blur(4px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: '15px',
+        zIndex: 10,
+        animation: 'fadeIn 0.3s ease'
+    },
+    cardSucesso: {
+        backgroundColor: 'white',
+        padding: '30px 40px',
+        borderRadius: '16px',
+        boxShadow: '0 15px 35px rgba(76, 175, 80, 0.15), 0 5px 15px rgba(0, 0, 0, 0.08)',
+        border: '1px solid #e8f5e9',
+        textAlign: 'center',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '12px',
+        width: '320px'
+    },
+    iconeSucesso: {
+        width: '60px',
+        height: '60px',
+        borderRadius: '50%',
+        backgroundColor: '#e8f5e9',
+        color: '#4caf50',
+        fontSize: '32px',
+        fontWeight: 'bold',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '5px'
     }
 }
 
