@@ -5,11 +5,45 @@ import icone09 from '../assets/icon9.png';
 import icone10 from '../assets/icon10.png';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
+import { db } from '../firebase/config';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 function Inicio() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
     const [temNotificacaoImportante, setTemNotificacaoImportante] = useState(false);
+
+    useEffect(() => {
+        const checarAlertasAtivos = async () => {
+            try {
+                const alertasRef = collection(db, "alertas_disparados");
+                // Filtra de forma estrita apenas onde lido é exatamente igual a false
+                const q = query(alertasRef, where("lido", "==", false));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    // Filtro de segurança: garante que o documento tem os campos válidos de um alerta real
+                    const ocorrenciasValidas = querySnapshot.docs.filter(docSnap => {
+                        const dados = docSnap.data();
+                        return dados.causador !== undefined; // Valida se é um alerta estruturado legítimo
+                    });
+
+                    if (ocorrenciasValidas.length > 0) {
+                        setTemNotificacaoImportante(true);
+                    } else {
+                        setTemNotificacaoImportante(false);
+                    }
+                } else {
+                    setTemNotificacaoImportante(false);
+                }
+            } catch (error) {
+                console.error("Erro ao verificar notificações no início:", error);
+                setTemNotificacaoImportante(false);
+            }
+        };
+
+        checarAlertasAtivos();
+    }, []);
 
     const handleHoverNotificacao = (e, isHovering, isImportant) => {
         e.currentTarget.style.transform = isHovering ? 'translateY(-3px)' : 'translateY(0)';
@@ -81,7 +115,7 @@ function Inicio() {
                     style={{
                         ...buttonNotificacaoStyle,
                         // Gatilho: Se for importante, aplica uma borda ou fundo mais chamativo
-                        border: temNotificacaoImportante ? '3px solid #ef4444' : '1px solid #f59e0b',
+                        border: temNotificacaoImportante ? '5px solid #ef4444' : '1px solid #f59e0b',
                         backgroundColor: temNotificacaoImportante ? '#fef2f2' : '#fffbeb',
                         height: temNotificacaoImportante ? '100px' : '80px'
                     }}
@@ -223,10 +257,10 @@ const buttonNotificacaoStyle = {
 
 const badgeStyle = {
     position: 'absolute',
-    top: '-4px',
-    right: '-4px',
-    width: '12px',
-    height: '12px',
+    top: '-15px',
+    right: '-15px',
+    width: '30px',
+    height: '30px',
     backgroundColor: '#ef4444', // Vermelho vivo
     borderRadius: '50%',
     border: '2px solid #ffffff', // Separa o badge do ícone para ficar limpo
