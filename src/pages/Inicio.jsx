@@ -5,53 +5,90 @@ import icone09 from '../assets/icon9.png';
 import icone10 from '../assets/icon10.png';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
+
 import { db } from '../firebase/config';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import {
+    collection,
+    query,
+    where,
+    onSnapshot
+} from 'firebase/firestore';
 
 function Inicio() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
+
     const [temNotificacaoImportante, setTemNotificacaoImportante] = useState(false);
+    const [quantidadeAlertasAtivos, setQuantidadeAlertasAtivos] = useState(0);
 
     useEffect(() => {
-        const checarAlertasAtivos = async () => {
-            try {
-                const alertasRef = collection(db, "alertas_disparados");
-                // Filtra de forma estrita apenas onde lido é exatamente igual a false
-                const q = query(alertasRef, where("lido", "==", false));
-                const querySnapshot = await getDocs(q);
+        let regrasAtivasIds = [];
+        let alertasNaoLidos = [];
 
-                if (!querySnapshot.empty) {
-                    // Filtro de segurança: garante que o documento tem os campos válidos de um alerta real
-                    const ocorrenciasValidas = querySnapshot.docs.filter(docSnap => {
-                        const dados = docSnap.data();
-                        return dados.causador !== undefined; // Valida se é um alerta estruturado legítimo
-                    });
+        const atualizarNotificacao = () => {
+            const ocorrenciasValidas = alertasNaoLidos.filter(alerta => {
+                return (
+                    alerta.lido === false &&
+                    alerta.id_regra &&
+                    alerta.causador &&
+                    regrasAtivasIds.includes(alerta.id_regra)
+                );
+            });
 
-                    if (ocorrenciasValidas.length > 0) {
-                        setTemNotificacaoImportante(true);
-                    } else {
-                        setTemNotificacaoImportante(false);
-                    }
-                } else {
-                    setTemNotificacaoImportante(false);
-                }
-            } catch (error) {
-                console.error("Erro ao verificar notificações no início:", error);
-                setTemNotificacaoImportante(false);
-            }
+            setQuantidadeAlertasAtivos(ocorrenciasValidas.length);
+            setTemNotificacaoImportante(ocorrenciasValidas.length > 0);
         };
 
-        checarAlertasAtivos();
+        const regrasRef = collection(db, "config_alertas");
+
+        const qRegrasAtivas = query(
+            regrasRef,
+            where("ativo", "==", true)
+        );
+
+        const unsubscribeRegras = onSnapshot(qRegrasAtivas, (snapshot) => {
+            regrasAtivasIds = snapshot.docs.map(docSnap => docSnap.id);
+            atualizarNotificacao();
+        }, (error) => {
+            console.error("Erro ao escutar regras ativas:", error);
+            setTemNotificacaoImportante(false);
+            setQuantidadeAlertasAtivos(0);
+        });
+
+        const alertasRef = collection(db, "alertas_disparados");
+
+        const qAlertasNaoLidos = query(
+            alertasRef,
+            where("lido", "==", false)
+        );
+
+        const unsubscribeAlertas = onSnapshot(qAlertasNaoLidos, (snapshot) => {
+            alertasNaoLidos = snapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+            }));
+
+            atualizarNotificacao();
+        }, (error) => {
+            console.error("Erro ao escutar alertas disparados:", error);
+            setTemNotificacaoImportante(false);
+            setQuantidadeAlertasAtivos(0);
+        });
+
+        return () => {
+            unsubscribeRegras();
+            unsubscribeAlertas();
+        };
     }, []);
 
     const handleHoverNotificacao = (e, isHovering, isImportant) => {
         e.currentTarget.style.transform = isHovering ? 'translateY(-3px)' : 'translateY(0)';
-        
+
         if (isHovering) {
-            e.currentTarget.style.boxShadow = isImportant 
-                ? '0 8px 25px rgba(239, 68, 68, 0.25)' 
+            e.currentTarget.style.boxShadow = isImportant
+                ? '0 8px 25px rgba(239, 68, 68, 0.25)'
                 : '0 8px 25px rgba(245, 158, 11, 0.2)';
+
             e.currentTarget.style.backgroundColor = isImportant ? '#fee2e2' : '#fef3c7';
         } else {
             e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.04)';
@@ -60,17 +97,17 @@ function Inicio() {
     };
 
     return (
-        <div className='card-projeto' style={containerStyle}>
+        <div className="card-projeto" style={containerStyle}>
             <header style={headerStyle}>
                 <h1 style={titleStyle}>Bem-vindo!</h1>
                 <p style={subtitleStyle}>{dataFormatada}</p>
             </header>
 
             <h2 style={menuTitleStyle}>Menu Principal</h2>
-            
+
             <div style={menuContainerStyle}>
                 <button
-                    className='button-padrao'
+                    className="button-padrao"
                     style={buttonStyle}
                     onClick={() => navigate('/cadastrarfaltas')}
                     onMouseEnter={(e) => handleHover(e, true)}
@@ -79,13 +116,14 @@ function Inicio() {
                     <div style={iconContainerStyle}>
                         <img src={icone02} alt="Ícone Faltas" style={iconStyle} />
                     </div>
+
                     <span style={buttonTextStyle}>
                         Adicionar Faltas do Dia <strong style={highlightStyle}>({diaSemana})</strong>
                     </span>
                 </button>
 
                 <button
-                    className='button-padrao'
+                    className="button-padrao"
                     style={buttonStyle}
                     onClick={() => navigate('/turmas')}
                     onMouseEnter={(e) => handleHover(e, true)}
@@ -94,11 +132,14 @@ function Inicio() {
                     <div style={iconContainerStyle}>
                         <img src={icone01} alt="Ícone Turmas" style={iconStyle} />
                     </div>
-                    <span style={buttonTextStyle}>Gerenciar Turmas Registradas</span>
+
+                    <span style={buttonTextStyle}>
+                        Gerenciar Turmas Registradas
+                    </span>
                 </button>
 
                 <button
-                    className='button-padrao'
+                    className="button-padrao"
                     style={buttonStyle}
                     onClick={() => navigate('/metricas')}
                     onMouseEnter={(e) => handleHover(e, true)}
@@ -107,35 +148,42 @@ function Inicio() {
                     <div style={iconContainerStyle}>
                         <img src={icone09} alt="Ícone Métricas" style={iconStyle} />
                     </div>
-                    <span style={buttonTextStyle}>Consultar Métricas de Frequência</span>
+
+                    <span style={buttonTextStyle}>
+                        Consultar Métricas de Frequência
+                    </span>
                 </button>
 
                 <button
-                    className='button-padrao'
+                    className="button-padrao"
                     style={{
                         ...buttonNotificacaoStyle,
-                        // Gatilho: Se for importante, aplica uma borda ou fundo mais chamativo
                         border: temNotificacaoImportante ? '5px solid #ef4444' : '1px solid #f59e0b',
                         backgroundColor: temNotificacaoImportante ? '#fef2f2' : '#fffbeb',
                         height: temNotificacaoImportante ? '100px' : '80px'
                     }}
-                    onClick={() => navigate('/alertas')} // Ajuste a rota se necessário
+                    onClick={() => navigate('/alertas')}
                     onMouseEnter={(e) => handleHoverNotificacao(e, true, temNotificacaoImportante)}
                     onMouseLeave={(e) => handleHoverNotificacao(e, false, temNotificacaoImportante)}
                 >
                     <div style={iconContainerStyle}>
-                        {/* Ícone de Notificação */}
                         <img src={icone10} alt="Ícone Notificações" style={iconStyle} />
-                        
-                        {/* Badge Visual (Bolinha) que aparece se houver notificação */}
-                        {temNotificacaoImportante && <span style={badgeStyle} />}
+
+                        {temNotificacaoImportante && (
+                            <span style={badgeStyle}>
+                                {quantidadeAlertasAtivos}
+                            </span>
+                        )}
                     </div>
-                    
+
                     <span style={{
                         ...buttonTextStyle,
                         color: temNotificacaoImportante ? '#991b1b' : '#92400e'
                     }}>
-                        Alertas
+                        {temNotificacaoImportante
+                            ? `Alertas acionados (${quantidadeAlertasAtivos})`
+                            : "Alertas"
+                        }
                     </span>
                 </button>
             </div>
@@ -145,9 +193,11 @@ function Inicio() {
 
 const handleHover = (e, isHovering) => {
     e.currentTarget.style.transform = isHovering ? 'translateY(-3px)' : 'translateY(0)';
-    e.currentTarget.style.boxShadow = isHovering 
-        ? '0 8px 20px rgba(0, 0, 0, 0.12), 0 0 8px rgba(37, 99, 235, 0.2)' 
+
+    e.currentTarget.style.boxShadow = isHovering
+        ? '0 8px 20px rgba(0, 0, 0, 0.12), 0 0 8px rgba(37, 99, 235, 0.2)'
         : '0 2px 4px rgba(0, 0, 0, 0.04)';
+
     e.currentTarget.style.backgroundColor = isHovering ? '#bfdbfe' : '#e0f2fe';
 };
 
@@ -203,7 +253,7 @@ const buttonStyle = {
     gap: '16px',
     padding: '16px',
     borderRadius: '12px',
-    backgroundColor: '#e0f2fe', // Um azul claro mais suave e moderno
+    backgroundColor: '#e0f2fe',
     border: 'none',
     width: '100%',
     cursor: 'pointer',
@@ -220,7 +270,8 @@ const iconContainerStyle = {
     height: '48px',
     backgroundColor: '#ffffff',
     borderRadius: '10px',
-    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)',
+    position: 'relative'
 };
 
 const iconStyle = {
@@ -230,7 +281,7 @@ const iconStyle = {
 };
 
 const buttonTextStyle = {
-    color: '#0369a1', // Azul escuro para excelente contraste e legibilidade
+    color: '#0369a1',
     fontSize: '16px',
     fontWeight: '600',
     flex: 1
@@ -252,18 +303,26 @@ const buttonNotificacaoStyle = {
     boxShadow: '0 2px 4px rgba(0, 0, 0, 0.04)',
     transition: 'all 0.25s ease-in-out',
     textAlign: 'left',
-    position: 'relative' // Necessário para posicionar o badge de forma absoluta se preferir, ou controlar o container
+    position: 'relative'
 };
 
 const badgeStyle = {
     position: 'absolute',
     top: '-15px',
     right: '-15px',
-    width: '30px',
+    minWidth: '30px',
     height: '30px',
-    backgroundColor: '#ef4444', // Vermelho vivo
+    padding: '0 6px',
+    backgroundColor: '#ef4444',
+    color: '#ffffff',
     borderRadius: '50%',
-    border: '2px solid #ffffff', // Separa o badge do ícone para ficar limpo
+    border: '2px solid #ffffff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    boxSizing: 'border-box'
 };
 
 export default Inicio;

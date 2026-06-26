@@ -1,224 +1,104 @@
-import { data, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getInfoData } from '../utils/data';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase/config';
-import { collection, getDocs, setDoc, query, where, arrayRemove, doc, updateDoc, arrayUnion, addDoc} from 'firebase/firestore';
-import icone08 from '../assets/icon8.png'
+import { executarMotorAlertasDaTurma } from '../services/motorAlertas';
+
+import {
+    collection,
+    getDocs,
+    setDoc,
+    query,
+    where,
+    doc
+} from 'firebase/firestore';
+
+import icone08 from '../assets/icon8.png';
 
 function CadastrarFaltas() {
     const { diaSemana, dataFormatada } = getInfoData();
     const navigate = useNavigate();
-    const [alunos, setAlunos] = useState([]); 
+
+    const [alunos, setAlunos] = useState([]);
     const [carregando, setCarregando] = useState(false);
     const [faltantes, setFaltantes] = useState([]);
     const [turmaAtiva, setTurmaAtiva] = useState(localStorage.getItem('turmaAtivaTurmas') || "");
-    localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
     const [dataChamada, setDataChamada] = useState(new Date().toISOString().split('T')[0]);
     const [iniciarSalvar, setIniciarSalvar] = useState(0);
-    
-    // NOVO: Estado para controlar a exibição da mensagem de sucesso na tela
     const [mensagemSucesso, setMensagemSucesso] = useState(false);
+
+    useEffect(() => {
+        localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
+    }, [turmaAtiva]);
+
+    const formatarNovaData = (dataISO) => {
+        if (!dataISO) return "";
+
+        const [ano, mes, dia] = dataISO.split('-');
+        return `${dia}/${mes}/${ano}`;
+    };
+
+    const obterNovoDiaSemana = (dataISO) => {
+        const dias = [
+            'Domingo',
+            'Segunda-feira',
+            'Terça-feira',
+            'Quarta-feira',
+            'Quinta-feira',
+            'Sexta-feira',
+            'Sábado'
+        ];
+
+        const data = new Date(dataISO + 'T12:00:00');
+        return dias[data.getDay()];
+    };
 
     const handleSalvarBanco = async () => {
         if (!turmaAtiva) return;
 
         try {
             const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
 
-            if (!querySnapshot.empty) {
-                const turmaDocSnap = querySnapshot.docs[0];
-                const idTurma = turmaDocSnap.id;
-                const chamadaDocRef = doc(db, "turmas", idTurma, "chamadas", dataChamada);
+            const qTurma = query(
+                turmasRef,
+                where("nome", "==", turmaAtiva)
+            );
 
-                // 1. Grava a chamada do dia normalmente
-                await setDoc(chamadaDocRef, {
-                    data: dataChamada,
-                    diaDaSemana: dataChamada === new Date().toISOString().split('T')[0] ? dataFormatada : obterNovoDiaSemana(dataChamada),
-                    faltas: faltantes 
-                }, { merge: true });
+            const querySnapshot = await getDocs(qTurma);
 
-                // 2. DISPARO DO MOTOR DE ALERTAS AUTOMÁTICO
-                // Busca apenas as regras que a coordenação deixou ativas (Ligadas)
-                const alertasConfigRef = collection(db, "config_alertas");
-                const qAlertas = query(alertasConfigRef, where("ativo", "==", true));
-                const alertasSnapshot = await getDocs(qAlertas);
-
-                if (!alertasSnapshot.empty) {
-                    // Buscamos todo o histórico de chamadas da turma atual para calcular os acumulados
-                    const todasChamadasRef = collection(db, "turmas", idTurma, "chamadas");
-                    const todasChamadasSnapshot = await getDocs(todasChamadasRef);
-
-                    // Mapeia todas as faltas históricas registradas na turma por aluno
-                    const registroFaltasPorAluno = {};
-                    let totalFaltasEscopoTurma = 0;
-
-                    todasChamadasSnapshot.forEach(docCall => {
-                        const dadosChamada = docCall.data();
-                        const dataDoc = dadosChamada.data; // Formato AAAA-MM-DD
-                        const listaFaltas = dadosChamada.faltas || [];
-
-                        // Filtro do mês corrente baseado na data da chamada atual (AAAA-MM)
-                        const mesCorrente = dataChamada.substring(0, 7);
-
-                        listaFaltas.forEach(f => {
-                            // Trata se a estrutura de faltas salvar como objeto { nome, tipo } ou apenas string
-                            const nomeDoAluno = typeof f === 'object' ? f.nome : f;
-                            const tipoFalta = typeof f === 'object' ? f.tipo : 'regular';
-
-                            // Apenas faltas não justificadas entram no radar de alertas
-                            if (tipoFalta !== 'justificada') {
-                                if (!registroFaltasPorAluno[nomeDoAluno]) {
-                                    registroFaltasPorAluno[nomeDoAluno] = { seguidas: 0, mensal: 0, anual: 0 };
-                                }
-
-                                // Incrementa contador anual
-                                registroFaltasPorAluno[nomeDoAluno].anual += 1;
-
-                                // Incrementa contador mensal se for do mesmo mês
-                                if (dataDoc && dataDoc.startsWith(mesCorrente)) {
-                                    registroFaltasPorAluno[nomeDoAluno].mensal += 1;
-                                    totalFaltasEscopoTurma += 1; // Incrementa faltas globais da turma no mês
-                                }
-                            }
-                        });
-                    });
-
-                    // Varre cada regra cadastrada na coordenação para validar o estouro
-                    for (const docRegra of alertasSnapshot.docs) {
-                        const regra = docRegra.data();
-                        const idRegra = docRegra.id;
-                        const limite = regra.quantidadeFaltas;
-                        const periodo = regra.tipoPeriodo; // "Mensal" | "Seguidas" | "Anual"
-
-                        if (regra.tipoAlvo === "Turma") {
-                            // --- VALIDAÇÃO DE REGRAS PARA A TURMA ---
-                            if (regra.escopo === "Todos" || (regra.escopo === "Especifico" && regra.turmaAlvo === turmaAtiva)) {
-                                if (periodo === "Mensal" && totalFaltasEscopoTurma >= limite) {
-                                    // Dispara ocorrência para a turma
-                                    await addDoc(collection(db, "alertas_disparados"), {
-                                        id_regra: idRegra,
-                                        texto_notificacao: `A turma atingiu o limite de faltas!`,
-                                        causador: turmaAtiva,
-                                        turma: turmaAtiva,
-                                        quantidadeFaltasAtual: totalFaltasEscopoTurma,
-                                        lido: false,
-                                        dataDisparo: new Date().toISOString()
-                                    });
-                                }
-                            }
-                        } else if (regra.tipoAlvo === "Aluno") {
-                            // --- VALIDAÇÃO DE REGRAS PARA ALUNOS ---
-                            // Varre os alunos que possuem faltas contabilizadas
-                            for (const nomeAluno of Object.keys(registroFaltasPorAluno)) {
-                                const métricas = registroFaltasPorAluno[nomeAluno];
-                                let disparar = false;
-                                let totalRegistrado = 0;
-
-                                // Verifica se o aluno se encaixa no escopo da regra criada
-                                const correspondeAoEscopo = regra.escopo === "Todos" || 
-                                    (regra.escopo === "Especifico" && regra.turmaAlvo === turmaAtiva && regra.alunoAlvo === nomeAluno);
-
-                                if (periodo === "Seguidas") {
-                                    // Ordenamos todas as chamadas por data (da mais antiga para a mais recente)
-                                    const chamadasOrdenadas = todasChamadasSnapshot.docs
-                                        .map(d => ({ id: d.id, ...d.data() }))
-                                        .sort((a, b) => a.data.localeCompare(b.data));
-
-                                    // Objeto temporário para contar a sequência de cada aluno da turma
-                                    const sequenciaFaltas = {};
-                                    
-                                    // Inicializa todos os alunos da turma com zero faltas seguidas
-                                    alunos.forEach(nome => { sequenciaFaltas[nome] = 0; });
-
-                                    // Varre os dias de aula em ordem cronológica para montar a corrente
-                                    chamadasOrdenadas.forEach(chamada => {
-                                        const faltasDoDia = chamada.faltas || [];
-                                        const nomesFaltantesDoDia = faltasDoDia
-                                            .filter(f => (typeof f === 'object' ? f.tipo : 'regular') !== 'justificada')
-                                            .map(f => typeof f === 'object' ? f.nome : f);
-
-                                        alunos.forEach(nome => {
-                                            if (nomesFaltantesDoDia.includes(nome)) {
-                                                // Se faltou e não foi justificada, a sequência aumenta
-                                                sequenciaFaltas[nome] += 1;
-                                            } else {
-                                                // Se veio na aula, quebra a corrente e zera!
-                                                sequenciaFaltas[nome] = 0;
-                                            }
-                                        });
-                                    });
-
-                                    // Agora valida se algum aluno estourou o limite de seguidas configurado
-                                    for (const nomeAluno of Object.keys(sequenciaFaltas)) {
-                                        const totalSeguidas = sequenciaFaltas[nomeAluno];
-                                        const correspondeAoEscopo = regra.escopo === "Todos" || 
-                                            (regra.escopo === "Especifico" && regra.turmaAlvo === turmaAtiva && regra.alunoAlvo === nomeAluno);
-
-                                        if (correspondeAoEscopo && totalSeguidas >= limite) {
-                                            await addDoc(collection(db, "alertas_disparados"), {
-                                                id_regra: idRegra,
-                                                texto_notificacao: `Limite de faltas seguidas atingido!`,
-                                                causador: nomeAluno,
-                                                turma: turmaAtiva,
-                                                quantidadeFaltasAtual: totalSeguidas,
-                                                lido: false,
-                                                dataDisparo: new Date().toISOString()
-                                            });
-                                        }
-                                    }
-
-                                } else {
-                                    // --- VALIDAÇÃO TRADICIONAL (MENSAL E ANUAL) ---
-                                    for (const nomeAluno of Object.keys(registroFaltasPorAluno)) {
-                                        const métricas = registroFaltasPorAluno[nomeAluno];
-                                        let disparar = false;
-                                        let totalRegistrado = 0;
-
-                                        const correspondeAoEscopo = regra.escopo === "Todos" || 
-                                            (regra.escopo === "Especifico" && regra.turmaAlvo === turmaAtiva && regra.alunoAlvo === nomeAluno);
-
-                                        if (correspondeAoEscopo) {
-                                            if (periodo === "Mensal" && métricas.mensal >= limite) {
-                                                disparar = true;
-                                                totalRegistrado = métricas.mensal;
-                                            } else if (periodo === "Anual" && métricas.anual >= limite) {
-                                                disparar = true;
-                                                totalRegistrado = métricas.anual;
-                                            }
-
-                                            if (disparar) {
-                                                await addDoc(collection(db, "alertas_disparados"), {
-                                                    id_regra: idRegra,
-                                                    texto_notificacao: `Limite de faltas atingido!`,
-                                                    causador: nomeAluno,
-                                                    turma: turmaAtiva,
-                                                    quantidadeFaltasAtual: totalRegistrado,
-                                                    lido: false,
-                                                    dataDisparo: new Date().toISOString()
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Ativa a animação de sucesso na tela
-                setMensagemSucesso(true);
-                setFaltantes([]);
-
-                setTimeout(() => {
-                    setMensagemSucesso(false);
-                    setIniciarSalvar(0);
-                }, 3000);
-
-            } else {
+            if (querySnapshot.empty) {
                 alert("Aviso: Turma não encontrada.");
+                return;
             }
+
+            const turmaDocSnap = querySnapshot.docs[0];
+            const idTurma = turmaDocSnap.id;
+
+            const chamadaDocRef = doc(db, "turmas", idTurma, "chamadas", dataChamada);
+
+            await setDoc(chamadaDocRef, {
+                data: dataChamada,
+                diaDaSemana:
+                    dataChamada === new Date().toISOString().split('T')[0]
+                        ? diaSemana
+                        : obterNovoDiaSemana(dataChamada),
+                faltas: faltantes
+            }, { merge: true });
+
+            await executarMotorAlertasDaTurma({
+                idTurma,
+                nomeTurma: turmaAtiva,
+                alunos,
+                dataReferencia: dataChamada
+            });
+
+            setMensagemSucesso(true);
+            setFaltantes([]);
+
+            setTimeout(() => {
+                setMensagemSucesso(false);
+                setIniciarSalvar(0);
+            }, 3000);
 
         } catch (error) {
             console.error("Erro ao salvar no Firebase e processar regras:", error);
@@ -235,49 +115,54 @@ function CadastrarFaltas() {
         setIniciarSalvar(1);
     };
 
-    const formatarNovaData = (dataISO) => {
-        if (!dataISO) return "";
-        const [ano, mes, dia] = dataISO.split('-');
-        return `${dia}/${mes}/${ano}`;
-    };
-
-    const obterNovoDiaSemana = (dataISO) => {
-        const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-        const data = new Date(dataISO + 'T12:00:00'); 
-        return dias[data.getDay()];
-    };
-
     const alternarFalta = (nomeAluno) => {
         setFaltantes(prev => {
             const existe = prev.some(item => item.nome === nomeAluno);
+
             if (existe) {
                 return prev.filter(item => item.nome !== nomeAluno);
-            } else {
-                return [...prev, { nome: nomeAluno, tipo: 'regular' }];
             }
+
+            return [
+                ...prev,
+                {
+                    nome: nomeAluno,
+                    tipo: 'regular'
+                }
+            ];
         });
     };
 
     const alternarJustificativa = (nomeAluno) => {
-        setFaltantes(prev => 
+        setFaltantes(prev =>
             prev.map(item => {
                 if (item.nome === nomeAluno) {
-                    return { ...item, tipo: item.tipo === 'regular' ? 'justificada' : 'regular' };
+                    return {
+                        ...item,
+                        tipo: item.tipo === 'regular' ? 'justificada' : 'regular'
+                    };
                 }
+
                 return item;
             })
         );
     };
-    
+
     useEffect(() => {
         const buscarAlunos = async () => {
             if (!turmaAtiva) return;
-            
+
             setCarregando(true);
+
             try {
                 const turmasRef = collection(db, "turmas");
-                const q = query(turmasRef, where("nome", "==", turmaAtiva));
-                const querySnapshot = await getDocs(q);
+
+                const qTurma = query(
+                    turmasRef,
+                    where("nome", "==", turmaAtiva)
+                );
+
+                const querySnapshot = await getDocs(qTurma);
 
                 if (!querySnapshot.empty) {
                     const dadosTurma = querySnapshot.docs[0].data();
@@ -286,6 +171,7 @@ function CadastrarFaltas() {
                     setAlunos([]);
                     console.log("Nenhuma turma encontrada!");
                 }
+
             } catch (error) {
                 console.error("Erro ao buscar alunos:", error);
             } finally {
@@ -299,37 +185,51 @@ function CadastrarFaltas() {
     return (
         iniciarSalvar === 0 ? (
             <div style={style.containerPrincipal}>
-                <div style={{display: 'flex', flexDirection: 'row', gap: '15px', alignContent: 'center', alignItems: 'center'}}>
-                    <button className='button-padrao' style={style.buttonVoltar}
-                        onClick={()=> navigate(-1)}
+                <div style={{ display: 'flex', flexDirection: 'row', gap: '15px', alignContent: 'center', alignItems: 'center' }}>
+                    <button
+                        className="button-padrao"
+                        style={style.buttonVoltar}
+                        onClick={() => navigate(-1)}
                     >
-                        <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }}/>
+                        <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }} />
                     </button>
+
                     <h1 style={style.titleStyle}>Adicionar Faltas</h1>
                 </div>
-                <hr></hr>
-                <div style={{display: 'flex', flexDirection: 'row', height: '540px', width: '100%', gap: '2px'}}>
-                    <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '5px'}}>
+
+                <hr />
+
+                <div style={{ display: 'flex', flexDirection: 'row', height: '540px', width: '100%', gap: '2px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', width: '300px', gap: '5px' }}>
                         <h2>Turmas</h2>
+
                         <div style={style.containerTurmas}>
                             {["1° Ano A", "1° Ano B", "1° Ano C", "2° Ano A", "2° Ano B", "2° Ano C", "2° Ano D", "2° Ano E"].map((turma) => (
-                                <button 
+                                <button
                                     key={turma}
-                                    style={{backgroundColor: turmaAtiva === turma ? "#e0d6ff" : "#fff", padding: turmaAtiva === turma ? "25px" : "15px"}} 
-                                    className='button-turma'
+                                    style={{
+                                        backgroundColor: turmaAtiva === turma ? "#e0d6ff" : "#fff",
+                                        padding: turmaAtiva === turma ? "25px" : "15px"
+                                    }}
+                                    className="button-turma"
                                     onClick={() => setTurmaAtiva(turma)}
                                 >
-                                    <p style={{fontSize: '23px'}}><strong>{turma}</strong></p>
+                                    <p style={{ fontSize: '23px' }}>
+                                        <strong>{turma}</strong>
+                                    </p>
                                 </button>
                             ))}
                         </div>
                     </div>
-                    <div style={{display: 'flex', flexDirection: 'column', width: '900px', gap: '5px'}}>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', width: '900px', gap: '5px' }}>
                         <h2>Alunos</h2>
+
                         <div style={style.containerConteudoTurmas}>
                             {turmaAtiva ? (
                                 <>
                                     <h4>Exibindo: {turmaAtiva}</h4>
+
                                     {carregando ? (
                                         <p>Carregando lista...</p>
                                     ) : (
@@ -345,8 +245,8 @@ function CadastrarFaltas() {
                                                 const estaFaltando = faltantes.some(item => item.nome === aluno);
 
                                                 return (
-                                                    <li 
-                                                        key={index} 
+                                                    <li
+                                                        key={index}
                                                         onClick={() => alternarFalta(aluno)}
                                                         style={{
                                                             ...style.itemAlunoStyle,
@@ -356,12 +256,15 @@ function CadastrarFaltas() {
                                                             cursor: 'pointer',
                                                             backgroundColor: estaFaltando ? '#ffebee' : '#fff',
                                                             borderLeft: estaFaltando ? '5px solid #ff5252' : '5px solid transparent',
-                                                            transition: 'all 0.2s',
+                                                            transition: 'all 0.2s'
                                                         }}
-                                                        className='button-padrao'
+                                                        className="button-padrao"
                                                     >
-                                                        <span style={{ color: estaFaltando ? '#d32f2f' : 'black', fontWeight: estaFaltando ? 'bold' : 'normal' }}>
-                                                            {index} - {aluno}
+                                                        <span style={{
+                                                            color: estaFaltando ? '#d32f2f' : 'black',
+                                                            fontWeight: estaFaltando ? 'bold' : 'normal'
+                                                        }}>
+                                                            {index + 1} - {aluno}
                                                         </span>
 
                                                         <div style={{
@@ -382,9 +285,10 @@ function CadastrarFaltas() {
                                                     </li>
                                                 );
                                             })}
-                                            <button 
+
+                                            <button
                                                 onClick={() => navigate('/turmas')}
-                                                style={style.buttonAdicionarAluno} 
+                                                style={style.buttonAdicionarAluno}
                                                 onMouseEnter={(e) => {
                                                     e.currentTarget.style.background = '#f3f4f6';
                                                     e.currentTarget.style.color = '#333';
@@ -394,7 +298,8 @@ function CadastrarFaltas() {
                                                     e.currentTarget.style.background = '#fafafa';
                                                     e.currentTarget.style.color = '#666';
                                                     e.currentTarget.style.borderColor = '#d0d7de';
-                                                }}>
+                                                }}
+                                            >
                                                 + Cadastrar alunos nesta turma
                                             </button>
                                         </ul>
@@ -404,16 +309,17 @@ function CadastrarFaltas() {
                                 <p>Selecione uma turma para ver os alunos.</p>
                             )}
                         </div>
-                    <div style={style.abaSalvar}>
+
+                        <div style={style.abaSalvar}>
                             <p style={{ margin: '0 0 15px 0', textAlign: 'left', fontSize: '18px' }}>
                                 Você marcou <strong>{faltantes.length}</strong> falta(s).
                             </p>
 
                             <div style={{ display: 'flex', gap: '10px', width: '100%', justifyContent: 'flex-start' }}>
-                                <button 
-                                    className='button-padrao'
+                                <button
+                                    className="button-padrao"
                                     onClick={handleLimparSelecao}
-                                    disabled={faltantes.length === 0} 
+                                    disabled={faltantes.length === 0}
                                     style={{
                                         ...style.buttonConfirmar,
                                         flex: 1,
@@ -427,8 +333,8 @@ function CadastrarFaltas() {
                                     Limpar Seleção
                                 </button>
 
-                                <button 
-                                    className='button-padrao'
+                                <button
+                                    className="button-padrao"
                                     onClick={handleConfirmarChamada}
                                     disabled={faltantes.length === 0}
                                     style={{
@@ -449,9 +355,17 @@ function CadastrarFaltas() {
                 </div>
             </div>
         ) : (
-            <div className='card-projeto' style={{display: 'flex', flexDirection: 'column', height: '590px', width: '890px', gap: '10px', position: 'relative'}}>
-                
-                {/* NOVO: Banner interno de sucesso condicional com desfoque de fundo */}
+            <div
+                className="card-projeto"
+                style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    height: '590px',
+                    width: '890px',
+                    gap: '10px',
+                    position: 'relative'
+                }}
+            >
                 {mensagemSucesso && (
                     <div style={style.overlaySucesso}>
                         <div style={style.cardSucesso}>
@@ -462,67 +376,74 @@ function CadastrarFaltas() {
                     </div>
                 )}
 
-                <div style={{display: 'flex', flexDirection: 'row', gap: '15px', alignContent: 'center', alignItems: 'center'}}>
-                    <button className='button-padrao' style={style.buttonVoltar}
-                        onClick={()=> navigate(-1)}
+                <div style={{ display: 'flex', flexDirection: 'row', gap: '15px', alignContent: 'center', alignItems: 'center' }}>
+                    <button
+                        className="button-padrao"
+                        style={style.buttonVoltar}
+                        onClick={() => navigate(-1)}
                     >
-                        <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }}/>
+                        <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }} />
                     </button>
+
                     <h1>Adicionar Faltas</h1>
                 </div>
-                <hr></hr>
-                <div
-                    style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '8px',
-                        width: '100%',
-                        height: '100%',
-                        padding: '20px',
-                        border: '1px solid #ddd',
-                        borderRadius: '15px',
-                        backgroundColor: '#ffffff'
-                    }}
-                    >
+
+                <hr />
+
+                <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                    width: '100%',
+                    height: '100%',
+                    padding: '20px',
+                    border: '1px solid #ddd',
+                    borderRadius: '15px',
+                    backgroundColor: '#ffffff'
+                }}>
                     <h2>Confirmar Chamada</h2>
 
-                    <div
-                        style={{
-                            backgroundColor: '#f8f9fa',
-                            padding: '15px',
-                            borderRadius: '12px',
-                            border: '1px solid #e9ecef',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            width: '100%',
-                            boxSizing: 'border-box'
-                        }}
-                    >
-                        <p  style={{
-                                flexDirection: 'row',
-                                gap: '10px',
-                                fontSize: '18px',
-                            }}>
-                            <strong>Data:</strong> {
-                            dataChamada === new Date().toISOString().split('T')[0]
-                                ? dataFormatada
-                                : formatarNovaData(dataChamada)
+                    <div style={{
+                        backgroundColor: '#f8f9fa',
+                        padding: '15px',
+                        borderRadius: '12px',
+                        border: '1px solid #e9ecef',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%',
+                        boxSizing: 'border-box'
+                    }}>
+                        <p style={{
+                            flexDirection: 'row',
+                            gap: '10px',
+                            fontSize: '18px'
+                        }}>
+                            <strong>Data:</strong>{" "}
+                            {
+                                dataChamada === new Date().toISOString().split('T')[0]
+                                    ? dataFormatada
+                                    : formatarNovaData(dataChamada)
                             }
                             {" - "}
                             {
-                            dataChamada === new Date().toISOString().split('T')[0]
-                                ? diaSemana
-                                : obterNovoDiaSemana(dataChamada)
+                                dataChamada === new Date().toISOString().split('T')[0]
+                                    ? diaSemana
+                                    : obterNovoDiaSemana(dataChamada)
                             }
                         </p>
-                        <div style={{ position: 'relative', display: 'inline-block' }} className='button-padrao'>
-                            <input 
-                                type="date" 
+
+                        <div style={{ position: 'relative', display: 'inline-block' }} className="button-padrao">
+                            <input
+                                type="date"
                                 value={dataChamada}
                                 onChange={(e) => setDataChamada(e.target.value)}
                                 onClick={(e) => {
-                                    try { e.target.showPicker(); } catch (err) { console.log(err); }
+                                    try {
+                                        e.target.showPicker();
+                                    } catch (err) {
+                                        console.log(err);
+                                    }
                                 }}
                                 style={{
                                     position: 'absolute',
@@ -535,47 +456,53 @@ function CadastrarFaltas() {
                                     zIndex: 2
                                 }}
                             />
-                            <div 
-                                style={{
-                                    padding: '6px 12px',
-                                    borderRadius: '6px',
-                                    backgroundColor: 'transparent',
-                                    border: '1px solid #d1d5db',
-                                    color: '#374151',
-                                    fontSize: '15px',
-                                    fontWeight: '500',
-                                    fontFamily: 'inherit',
-                                    textAlign: 'center',
-                                    whiteSpace: 'nowrap'
-                                }}
-                            >
-                                📅 {dataChamada === new Date().toISOString().split('T')[0] ? dataFormatada : formatarNovaData(dataChamada)}
+
+                            <div style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                backgroundColor: 'transparent',
+                                border: '1px solid #d1d5db',
+                                color: '#374151',
+                                fontSize: '15px',
+                                fontWeight: '500',
+                                fontFamily: 'inherit',
+                                textAlign: 'center',
+                                whiteSpace: 'nowrap'
+                            }}>
+                                📅 {
+                                    dataChamada === new Date().toISOString().split('T')[0]
+                                        ? dataFormatada
+                                        : formatarNovaData(dataChamada)
+                                }
                             </div>
                         </div>
                     </div>
-                    <h3>Lista de faltantes ({faltantes.length} {faltantes.length === 1 ? 'aluno' : 'alunos'})</h3>
-                    <p style={{ fontSize: '14px', color: '#666', margin: '0 0 5px 0' }}>💡 Clique em um aluno para alternar para Falta Justificada.</p>
-                    
-                    <div style={{
-                            ...style.containerConteudoTurmas,
-                            width:'100%',
-                            height: '250px'
-                            }}>
 
+                    <h3>
+                        Lista de faltantes ({faltantes.length} {faltantes.length === 1 ? 'aluno' : 'alunos'})
+                    </h3>
+
+                    <p style={{ fontSize: '14px', color: '#666', margin: '0 0 5px 0' }}>
+                        💡 Clique em um aluno para alternar para Falta Justificada.
+                    </p>
+
+                    <div style={{
+                        ...style.containerConteudoTurmas,
+                        width: '100%',
+                        height: '250px'
+                    }}>
                         {faltantes.length > 0 ? (
-                            <ul
-                                style={{
-                                    listStyle: 'none',
-                                    padding: 0,
-                                    margin: 0,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '5px'
-                                }}
-                            >
+                            <ul style={{
+                                listStyle: 'none',
+                                padding: 0,
+                                margin: 0,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '5px'
+                            }}>
                                 {faltantes.map((item, index) => {
                                     const ehJustificada = item.tipo === 'justificada';
-                                    
+
                                     return (
                                         <li
                                             key={index}
@@ -593,28 +520,34 @@ function CadastrarFaltas() {
                                                 transition: 'all 0.2s'
                                             }}
                                         >
-                                            <span style={{ color: ehJustificada ? '#2e7d32' : '#c62828', fontWeight: '500' }}>
+                                            <span style={{
+                                                color: ehJustificada ? '#2e7d32' : '#c62828',
+                                                fontWeight: '500'
+                                            }}>
                                                 {index + 1}. {item.nome}
                                             </span>
-                                            <span style={{ fontSize: '13px', color: ehJustificada ? '#2e7d32' : '#c62828', fontStyle: 'italic' }}>
+
+                                            <span style={{
+                                                fontSize: '13px',
+                                                color: ehJustificada ? '#2e7d32' : '#c62828',
+                                                fontStyle: 'italic'
+                                            }}>
                                                 {ehJustificada ? 'Justificada ✓' : 'Falta Regular'}
                                             </span>
                                         </li>
                                     );
                                 })}
                             </ul>
-                            ) : (
+                        ) : (
                             <p>Nenhum aluno foi marcado como faltante.</p>
                         )}
                     </div>
 
-                    <div
-                        style={{
-                            display: 'flex',
-                            gap: '10px',
-                            justifyContent: 'flex-end'
-                        }}
-                    >
+                    <div style={{
+                        display: 'flex',
+                        gap: '10px',
+                        justifyContent: 'flex-end'
+                    }}>
                         <button
                             className="button-padrao"
                             onClick={() => setIniciarSalvar(0)}
@@ -622,7 +555,7 @@ function CadastrarFaltas() {
                                 ...style.buttonConfirmar_CancelarSalvamento,
                                 backgroundColor: '#757575'
                             }}
-                            >
+                        >
                             Voltar
                         </button>
 
@@ -633,17 +566,16 @@ function CadastrarFaltas() {
                                 ...style.buttonConfirmar_CancelarSalvamento,
                                 backgroundColor: '#4caf50'
                             }}
-                            >
+                        >
                             Confirmar e Salvar
                         </button>
                     </div>
                 </div>
             </div>
-        )  
+        )
     );
 }
 
-// ADICIONE ESTES NOVOS ESTILOS NO SEU OBJETO DE ESTILOS EXISTENTE:
 const style = {
     titleStyle: {
         fontSize: '28px',
@@ -663,32 +595,35 @@ const style = {
         flexDirection: 'column',
         overflow: 'hidden',
         gap: '4px',
-        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)'
     },
+
     containerTurmas: {
         display: 'flex',
-        flexDirection: 'column', 
-        height: '100%', 
+        flexDirection: 'column',
+        height: '100%',
         width: '100%',
-        gap: '5px', 
-        padding: '10px', 
+        gap: '5px',
+        padding: '10px',
         border: '1px solid #ddd',
         borderRadius: '15px',
-        overflowY: 'auto', 
+        overflowY: 'auto',
         overflowX: 'hidden'
     },
+
     containerConteudoTurmas: {
         display: 'flex',
-        flexDirection: 'column', 
-        height: '405px', 
-        width: '100%', 
-        gap: '5px', 
-        padding: '10px', 
+        flexDirection: 'column',
+        height: '405px',
+        width: '100%',
+        gap: '5px',
+        padding: '10px',
         border: '1px solid #ddd',
         borderRadius: '15px',
-        overflowY: 'auto', 
+        overflowY: 'auto',
         overflowX: 'hidden'
     },
+
     itemAlunoStyle: {
         padding: '12px',
         borderBottom: '1px solid #eee',
@@ -696,6 +631,7 @@ const style = {
         cursor: "default",
         borderRadius: '8px'
     },
+
     buttonVoltar: {
         borderRadius: '80px',
         backgroundColor: 'transparent',
@@ -705,6 +641,7 @@ const style = {
         transition: 'all 0.2s ease-in-out',
         border: 'none'
     },
+
     abaSalvar: {
         padding: '15px',
         backgroundColor: '#fff3f3',
@@ -718,6 +655,7 @@ const style = {
         width: '100%',
         boxSizing: 'border-box'
     },
+
     buttonConfirmar: {
         backgroundColor: '#ff5252',
         color: 'white',
@@ -727,6 +665,7 @@ const style = {
         cursor: 'pointer',
         fontWeight: 'bold'
     },
+
     buttonAdicionarAluno: {
         marginTop: '12px',
         padding: '10px 14px',
@@ -737,8 +676,9 @@ const style = {
         fontSize: '14px',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
-        width: '100%',
+        width: '100%'
     },
+
     buttonConfirmar_CancelarSalvamento: {
         display: 'flex',
         alignItems: 'center',
@@ -754,7 +694,6 @@ const style = {
         height: '35px'
     },
 
-    // ESTES SÃO OS ESTILOS DO POPUP DE SUCESSO:
     overlaySucesso: {
         position: 'absolute',
         top: 0,
@@ -770,6 +709,7 @@ const style = {
         zIndex: 10,
         animation: 'fadeIn 0.3s ease'
     },
+
     cardSucesso: {
         backgroundColor: 'white',
         padding: '30px 40px',
@@ -783,6 +723,7 @@ const style = {
         gap: '12px',
         width: '320px'
     },
+
     iconeSucesso: {
         width: '60px',
         height: '60px',
@@ -796,6 +737,6 @@ const style = {
         justifyContent: 'center',
         marginBottom: '5px'
     }
-}
+};
 
 export default CadastrarFaltas;
