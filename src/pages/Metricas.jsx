@@ -1,110 +1,254 @@
 import { useNavigate } from 'react-router-dom';
-import { getInfoData } from '../utils/data';
 import { useState, useEffect, useRef } from 'react';
 
 import { db } from '../firebase/config';
-import { collection, getDocs, query, where, doc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { executarMotorAlertasDaTurma } from '../services/motorAlertas';
 
 import icone08 from '../assets/icon8.png';
 
 function Metricas() {
-    const { dataFormatada } = getInfoData();
     const navigate = useNavigate();
-    const [turmaAtiva, setTurmaAtiva] = useState(localStorage.getItem('turmaAtivaFaltas') || "");
-    localStorage.setItem('turmaAtivaTurmas', turmaAtiva);
-    
-    const [alunos, setAlunos] = useState([]); 
+
+    const [turmas, setTurmas] = useState([]);
+    const [turmaAtiva, setTurmaAtiva] = useState(
+        localStorage.getItem('turmaAtivaFaltas') ||
+        localStorage.getItem('turmaAtivaTurmas') ||
+        ''
+    );
+
+    const [alunos, setAlunos] = useState([]);
     const [carregando, setCarregando] = useState(false);
-    const [dataChamada, setDataChamada] = useState(new Date().toISOString().substring(0, 7)); // Formato: AAAA-MM
-    
-    const [modoAnalise, setModoAnalise] = useState("mes"); 
-    const [dataInicio, setDataInicio] = useState("");
-    const [dataFim, setDataFim] = useState("");
+    const [feedback, setFeedback] = useState(null);
+
+    const [dataChamada, setDataChamada] = useState(new Date().toISOString().substring(0, 7));
+    const [modoAnalise, setModoAnalise] = useState('mes');
+    const [dataInicio, setDataInicio] = useState('');
+    const [dataFim, setDataFim] = useState('');
     const [dataEspecifica, setDataEspecifica] = useState(new Date().toISOString().substring(0, 10));
     const [semanaReferencia, setSemanaReferencia] = useState(new Date().toISOString().substring(0, 10));
-    
-    const [totalDiasLetivos, setTotalDiasLetivos] = useState(0); 
-
-    const [alunoSelecionado, setAlunoSelecionado] = useState(null);
     const [anoSelecionado, setAnoSelecionado] = useState(new Date().getFullYear().toString());
 
-    // --- ESTADOS PARA A PESQUISA COM COR DE INPUT ---
-    const [termoPesquisa, setTermoPesquisa] = useState("");
-    const [pesquisaCarregando, setPesquisaCarregando] = useState(false);
-    const [corTextoPesquisa, setCorTextoPesquisa] = useState("#333"); // Guarda a cor dinâmica do texto do input
+    const [totalDiasLetivos, setTotalDiasLetivos] = useState(0);
+    const [alunoSelecionado, setAlunoSelecionado] = useState(null);
 
-    // --- ESTADOS PARA DETALHES INDIVIDUAIS DO ALUNO SELECIONADO ---
+    const [termoPesquisa, setTermoPesquisa] = useState('');
+    const [pesquisaCarregando, setPesquisaCarregando] = useState(false);
+    const [corTextoPesquisa, setCorTextoPesquisa] = useState('#334155');
+
     const [verTodasAsFaltas, setVerTodasAsFaltas] = useState(false);
-    const [historicoCompletoAluno, setHistoricoCompletoAluno] = useState([]); // [{ data, tipo }]
+    const [historicoCompletoAluno, setHistoricoCompletoAluno] = useState([]);
     const [carregandoHistorico, setCarregandoHistorico] = useState(false);
-    
-    // MODO EDIÇÃO DO BLOCO DE DETALHES
+
     const [modoEdicao, setModoEdicao] = useState(false);
-    const [historicoEdicaoTemporario, setHistoricoEdicaoTemporario] = useState([]); // Rastreia as mudanças antes de salvar
+    const [historicoEdicaoTemporario, setHistoricoEdicaoTemporario] = useState([]);
     const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
+    const [atualizadorMetricas, setAtualizadorMetricas] = useState(0);
 
     const nomeAlunoPendenteRef = useRef(null);
 
+    const turmaSelecionada = turmas.find((turma) => turma.nome === turmaAtiva);
+    const botoesBloqueados = carregando || pesquisaCarregando || salvandoEdicao || !!feedback;
+
+    const mostrarFeedback = (tipo, titulo, mensagem) => {
+        setFeedback({ tipo, titulo, mensagem });
+
+        setTimeout(() => {
+            setFeedback(null);
+        }, 3000);
+    };
+
     const formatarNovaData = (dataISO) => {
-        if (!dataISO) return "";
+        if (!dataISO) return '';
+
         const [ano, mes, dia] = dataISO.split('-');
         return `${dia}/${mes}/${ano}`;
     };
 
-    // Busca o histórico completo contendo objetos estruturados [{ data, tipo }]
-    const buscarHistoricoCompleto = async (nomeAluno) => {
-        if (!turmaAtiva || !nomeAluno) return;
-        setCarregandoHistorico(true);
+    const normalizarTexto = (texto) => {
+        return texto.trim().toLowerCase();
+    };
+
+    const obterNomeFalta = (falta) => {
+        return typeof falta === 'string' ? falta : falta?.nome;
+    };
+
+    const obterTipoFalta = (falta) => {
+        return typeof falta === 'string' ? 'regular' : falta?.tipo || 'regular';
+    };
+
+    const obterPeriodoSemana = (dataReferenciaISO) => {
+        const dataRef = new Date(dataReferenciaISO + 'T12:00:00');
+        const diaDaSemana = dataRef.getDay();
+        const distanciaParaSegunda = diaDaSemana === 0 ? -6 : 1 - diaDaSemana;
+
+        const segunda = new Date(dataRef);
+        segunda.setDate(dataRef.getDate() + distanciaParaSegunda);
+
+        const sexta = new Date(segunda);
+        sexta.setDate(segunda.getDate() + 4);
+
+        return {
+            inicio: segunda.toISOString().substring(0, 10),
+            fim: sexta.toISOString().substring(0, 10)
+        };
+    };
+
+    const obterDescricaoFiltro = () => {
+        if (modoAnalise === 'data-especifica') {
+            return `Data específica: ${formatarNovaData(dataEspecifica)}`;
+        }
+
+        if (modoAnalise === 'semana') {
+            const semana = obterPeriodoSemana(semanaReferencia);
+            return `Semana: ${formatarNovaData(semana.inicio)} até ${formatarNovaData(semana.fim)}`;
+        }
+
+        if (modoAnalise === 'mes') {
+            return `Mês: ${dataChamada}`;
+        }
+
+        if (modoAnalise === 'media') {
+            return `Ano: ${anoSelecionado}`;
+        }
+
+        if (modoAnalise === 'periodo') {
+            if (!dataInicio || !dataFim) {
+                return 'Intervalo: escolha data inicial e final';
+            }
+
+            return `Período: ${formatarNovaData(dataInicio)} até ${formatarNovaData(dataFim)}`;
+        }
+
+        return '';
+    };
+
+    const chamadaCorrespondeAoFiltro = (dataDoc) => {
+        if (!dataDoc) return false;
+
+        if (modoAnalise === 'mes') {
+            return dataDoc.startsWith(dataChamada);
+        }
+
+        if (modoAnalise === 'media') {
+            return dataDoc.startsWith(anoSelecionado);
+        }
+
+        if (modoAnalise === 'periodo') {
+            if (!dataInicio || !dataFim) return false;
+            return dataDoc >= dataInicio && dataDoc <= dataFim;
+        }
+
+        if (modoAnalise === 'data-especifica') {
+            return dataDoc === dataEspecifica;
+        }
+
+        if (modoAnalise === 'semana') {
+            const semana = obterPeriodoSemana(semanaReferencia);
+            return dataDoc >= semana.inicio && dataDoc <= semana.fim;
+        }
+
+        return false;
+    };
+
+    const carregarTurmas = async () => {
+        setCarregando(true);
+
         try {
-            const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
+            const snapshot = await getDocs(collection(db, 'turmas'));
 
-            if (!querySnapshot.empty) {
-                const idTurma = querySnapshot.docs[0].id;
-                const chamadasRef = collection(db, "turmas", idTurma, "chamadas");
-                const chamadasSnapshot = await getDocs(chamadasRef);
+            const listaTurmas = snapshot.docs
+                .map((docSnap) => ({
+                    id: docSnap.id,
+                    ...docSnap.data()
+                }))
+                .filter((turma) => turma.nome)
+                .sort((a, b) => a.nome.localeCompare(b.nome));
 
-                let todasAsFaltas = [];
-                chamadasSnapshot.forEach(docSnap => {
-                    const dadosChamada = docSnap.data();
-                    const dataDoc = dadosChamada.data;
-                    const faltasDoDia = dadosChamada.faltas || [];
+            setTurmas(listaTurmas);
 
-                    // Encontra se o aluno está na lista deste dia (seja string ou objeto)
-                    const registroFalta = faltasDoDia.find(f => f === nomeAluno || f.nome === nomeAluno);
-                    
-                    if (registroFalta && dataDoc) {
-                        todasAsFaltas.push({
-                            data: dataDoc,
-                            tipo: registroFalta.tipo || 'regular' // fallback para retrocompatibilidade
-                        });
-                    }
-                });
-                
-                // Ordena por data
-                todasAsFaltas.sort((a, b) => a.data.localeCompare(b.data));
-                setHistoricoCompletoAluno(todasAsFaltas);
-                setHistoricoEdicaoTemporario(todasAsFaltas);
+            const turmaSalvaExiste = listaTurmas.some((turma) => turma.nome === turmaAtiva);
+
+            if (turmaAtiva && !turmaSalvaExiste) {
+                setTurmaAtiva('');
+                setAlunos([]);
+                setAlunoSelecionado(null);
+                localStorage.removeItem('turmaAtivaTurmas');
+                localStorage.removeItem('turmaAtivaFaltas');
+            }
+
+            if (!turmaAtiva && listaTurmas.length > 0) {
+                setTurmaAtiva(listaTurmas[0].nome);
             }
         } catch (error) {
-            console.error("Erro ao buscar histórico completo:", error);
+            console.error('Erro ao carregar turmas:', error);
+            mostrarFeedback('erro', 'Erro ao carregar', 'Não foi possível buscar as turmas cadastradas.');
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    useEffect(() => {
+        carregarTurmas();
+    }, []);
+
+    useEffect(() => {
+        if (!turmaAtiva) return;
+
+        localStorage.setItem('turmaAtivaTurmas', turmaAtiva);
+        localStorage.setItem('turmaAtivaFaltas', turmaAtiva);
+    }, [turmaAtiva]);
+
+    const buscarHistoricoCompleto = async (nomeAluno) => {
+        if (!turmaSelecionada || !nomeAluno) return;
+
+        setCarregandoHistorico(true);
+
+        try {
+            const chamadasRef = collection(db, 'turmas', turmaSelecionada.id, 'chamadas');
+            const chamadasSnapshot = await getDocs(chamadasRef);
+
+            const todasAsFaltas = [];
+
+            chamadasSnapshot.forEach((docSnap) => {
+                const dadosChamada = docSnap.data();
+                const dataDoc = dadosChamada.data;
+                const faltasDoDia = dadosChamada.faltas || [];
+
+                const registroFalta = faltasDoDia.find((falta) => obterNomeFalta(falta) === nomeAluno);
+
+                if (registroFalta && dataDoc) {
+                    todasAsFaltas.push({
+                        data: dataDoc,
+                        tipo: obterTipoFalta(registroFalta)
+                    });
+                }
+            });
+
+            todasAsFaltas.sort((a, b) => a.data.localeCompare(b.data));
+
+            setHistoricoCompletoAluno(todasAsFaltas);
+            setHistoricoEdicaoTemporario(todasAsFaltas);
+        } catch (error) {
+            console.error('Erro ao buscar histórico completo:', error);
+            mostrarFeedback('erro', 'Erro ao buscar histórico', 'Não foi possível carregar o histórico do aluno.');
         } finally {
             setCarregandoHistorico(false);
         }
     };
 
-    // Dispara a atualização do bloco ao selecionar um aluno ou mudar filtros locais
     useEffect(() => {
         setVerTodasAsFaltas(false);
         setModoEdicao(false);
+
         if (alunoSelecionado) {
             buscarHistoricoCompleto(alunoSelecionado.nome);
         } else {
             setHistoricoCompletoAluno([]);
             setHistoricoEdicaoTemporario([]);
         }
-    }, [alunoSelecionado?.nome]);
+    }, [alunoSelecionado?.nome, turmaSelecionada?.id]);
 
     useEffect(() => {
         if (verTodasAsFaltas && alunoSelecionado) {
@@ -112,51 +256,163 @@ function Metricas() {
         }
     }, [verTodasAsFaltas]);
 
-    // Função de alteração retroativa do status no Firebase
-    const handleSalvarEdicaoFirebase = async () => {
-        if (!alunoSelecionado || !turmaAtiva) return;
-        setSalvandoEdicao(true);
+    const buscarMetricasFaltas = async () => {
+        if (!turmaSelecionada) {
+            setAlunos([]);
+            setTotalDiasLetivos(0);
+            setAlunoSelecionado(null);
+            return;
+        }
+
+        setCarregando(true);
+
         try {
-            const turmasRef = collection(db, "turmas");
-            const q = query(turmasRef, where("nome", "==", turmaAtiva));
-            const querySnapshot = await getDocs(q);
+            const listaNomesAlunos = turmaSelecionada.alunos || [];
+            const chamadasRef = collection(db, 'turmas', turmaSelecionada.id, 'chamadas');
+            const chamadasSnapshot = await getDocs(chamadasRef);
 
-            if (!querySnapshot.empty) {
-                const idTurma = querySnapshot.docs[0].id;
-                
-                // Varre cada dia modificado e atualiza seu respectivo documento de chamada no Firebase
-                for (const itemModificado of historicoEdicaoTemporario) {
-                    const chamadaDocRef = doc(db, "turmas", idTurma, "chamadas", itemModificado.data);
-                    const chamadasSnapshot = await getDocs(query(collection(db, "turmas", idTurma, "chamadas"), where("data", "==", itemModificado.data)));
-                    
-                    if(!chamadasSnapshot.empty) {
-                        const dadosChamada = chamadasSnapshot.docs[0].data();
-                        let listaFaltasAtualizada = dadosChamada.faltas || [];
+            const registroDatasFaltas = {};
 
-                        listaFaltasAtualizada = listaFaltasAtualizada.map(f => {
-                            const nomeFalta = typeof f === 'string' ? f : f.nome;
-                            if (nomeFalta === alunoSelecionado.nome) {
-                                return { nome: nomeFalta, tipo: itemModificado.tipo };
-                            }
-                            return f;
-                        });
+            listaNomesAlunos.forEach((nome) => {
+                registroDatasFaltas[nome] = [];
+            });
 
-                        await setDoc(chamadaDocRef, { faltas: listaFaltasAtualizada }, { merge: true });
-                    }
+            let diasContados = 0;
+
+            chamadasSnapshot.forEach((docSnap) => {
+                const dadosChamada = docSnap.data();
+                const dataDoc = dadosChamada.data;
+                const faltasDoDia = dadosChamada.faltas || [];
+
+                if (chamadaCorrespondeAoFiltro(dataDoc)) {
+                    diasContados += 1;
+
+                    faltasDoDia.forEach((falta) => {
+                        const nomeAluno = obterNomeFalta(falta);
+                        const tipoFalta = obterTipoFalta(falta);
+
+                        if (registroDatasFaltas[nomeAluno] !== undefined && tipoFalta !== 'justificada') {
+                            registroDatasFaltas[nomeAluno].push({
+                                data: dataDoc,
+                                tipo: tipoFalta
+                            });
+                        }
+                    });
+                }
+            });
+
+            setTotalDiasLetivos(diasContados);
+
+            const alunosEstruturados = listaNomesAlunos.map((nome) => {
+                const datasOrdenadas = (registroDatasFaltas[nome] || []).sort((a, b) => a.data.localeCompare(b.data));
+
+                return {
+                    nome,
+                    quantidadeFaltas: datasOrdenadas.length,
+                    datasFaltas: datasOrdenadas.map((item) => item.data)
+                };
+            });
+
+            alunosEstruturados.sort((a, b) => b.quantidadeFaltas - a.quantidadeFaltas);
+            setAlunos(alunosEstruturados);
+
+            if (nomeAlunoPendenteRef.current) {
+                const encontrarAluno = alunosEstruturados.find((aluno) => aluno.nome === nomeAlunoPendenteRef.current);
+
+                if (encontrarAluno) {
+                    setAlunoSelecionado(encontrarAluno);
                 }
 
-                // CORREÇÃO AQUI: Aplica as mudanças da edição temporária diretamente na tela na mesma hora
-                setHistoricoCompletoAluno(historicoEdicaoTemporario);
-                setModoEdicao(false);
+                nomeAlunoPendenteRef.current = null;
+            } else if (alunoSelecionado) {
+                const recarregarSelecionado = alunosEstruturados.find((aluno) => aluno.nome === alunoSelecionado.nome);
 
-                // Isso força o useEffect geral a atualizar o ranking de alunos e remover a falta justificada da contagem
-                const turmaTemporaria = turmaAtiva;
-                setTurmaAtiva(""); 
-                setTimeout(() => setTurmaAtiva(turmaTemporaria), 50);
+                if (recarregarSelecionado) {
+                    setAlunoSelecionado(recarregarSelecionado);
+                }
             }
         } catch (error) {
-            console.error("Erro ao salvar edições retroativas:", error);
-            alert("Erro ao salvar atualizações.");
+            console.error('Erro ao buscar métricas:', error);
+            mostrarFeedback('erro', 'Erro nas métricas', 'Não foi possível calcular as métricas dessa turma.');
+        } finally {
+            setCarregando(false);
+        }
+    };
+
+    useEffect(() => {
+        buscarMetricasFaltas();
+    }, [
+        turmaSelecionada?.id,
+        dataChamada,
+        modoAnalise,
+        dataInicio,
+        dataFim,
+        anoSelecionado,
+        dataEspecifica,
+        semanaReferencia,
+        atualizadorMetricas
+    ]);
+
+    const handleSalvarEdicaoFirebase = async () => {
+        if (!alunoSelecionado || !turmaSelecionada) return;
+
+        setSalvandoEdicao(true);
+
+        try {
+            const chamadasRef = collection(db, 'turmas', turmaSelecionada.id, 'chamadas');
+            const chamadasSnapshot = await getDocs(chamadasRef);
+
+            const chamadasPorData = {};
+
+            chamadasSnapshot.forEach((docSnap) => {
+                const dadosChamada = docSnap.data();
+
+                if (dadosChamada.data) {
+                    chamadasPorData[dadosChamada.data] = dadosChamada;
+                }
+            });
+
+            for (const itemModificado of historicoEdicaoTemporario) {
+                const dadosChamada = chamadasPorData[itemModificado.data];
+
+                if (!dadosChamada) continue;
+
+                const listaFaltasAtualizada = (dadosChamada.faltas || []).map((falta) => {
+                    const nomeFalta = obterNomeFalta(falta);
+
+                    if (nomeFalta === alunoSelecionado.nome) {
+                        return {
+                            nome: nomeFalta,
+                            tipo: itemModificado.tipo
+                        };
+                    }
+
+                    return falta;
+                });
+
+                const chamadaDocRef = doc(db, 'turmas', turmaSelecionada.id, 'chamadas', itemModificado.data);
+
+                await setDoc(chamadaDocRef, {
+                    faltas: listaFaltasAtualizada,
+                    atualizadoEm: new Date().toISOString()
+                }, { merge: true });
+            }
+
+            await executarMotorAlertasDaTurma({
+                idTurma: turmaSelecionada.id,
+                nomeTurma: turmaSelecionada.nome,
+                alunos: turmaSelecionada.alunos || [],
+                dataReferencia: new Date().toISOString().split('T')[0]
+            });
+
+            setHistoricoCompletoAluno(historicoEdicaoTemporario);
+            setModoEdicao(false);
+            setAtualizadorMetricas((prev) => prev + 1);
+
+            mostrarFeedback('sucesso', 'Histórico atualizado', 'As faltas foram atualizadas e os alertas foram recalculados.');
+        } catch (error) {
+            console.error('Erro ao salvar edições retroativas:', error);
+            mostrarFeedback('erro', 'Erro ao salvar', 'Não foi possível salvar as alterações no histórico.');
         } finally {
             setSalvandoEdicao(false);
         }
@@ -164,33 +420,40 @@ function Metricas() {
 
     const alternarTipoFaltaTemporaria = (dataFalta) => {
         if (!modoEdicao) return;
-        setHistoricoEdicaoTemporario(prev => 
-            prev.map(item => item.data === dataFalta ? { ...item, tipo: item.tipo === 'regular' ? 'justificada' : 'regular' } : item)
+
+        setHistoricoEdicaoTemporario((prev) =>
+            prev.map((item) =>
+                item.data === dataFalta
+                    ? {
+                        ...item,
+                        tipo: item.tipo === 'regular' ? 'justificada' : 'regular'
+                    }
+                    : item
+            )
         );
     };
 
-    // Pesquisa global mudando apenas a cor do texto do input
     const lidarComPesquisa = async (e) => {
         e.preventDefault();
+
         if (!termoPesquisa.trim()) return;
 
         setPesquisaCarregando(true);
-        setCorTextoPesquisa("#333");
-        
-        try {
-            const turmasRef = collection(db, "turmas");
-            const querySnapshot = await getDocs(turmasRef);
-            
-            let alunoEncontrado = false;
-            let nomeTurmaEncontrada = "";
-            let nomeExatoAluno = "";
+        setCorTextoPesquisa('#334155');
 
-            querySnapshot.forEach((doc) => {
-                const dados = doc.data();
+        try {
+            const snapshot = await getDocs(collection(db, 'turmas'));
+
+            let alunoEncontrado = false;
+            let nomeTurmaEncontrada = '';
+            let nomeExatoAluno = '';
+
+            snapshot.forEach((docSnap) => {
+                const dados = docSnap.data();
                 const listaAlunos = dados.alunos || [];
-                
+
                 const correspondencia = listaAlunos.find(
-                    (nome) => nome.toLowerCase().trim() === termoPesquisa.toLowerCase().trim()
+                    (nome) => normalizarTexto(nome) === normalizarTexto(termoPesquisa)
                 );
 
                 if (correspondencia) {
@@ -201,443 +464,599 @@ function Metricas() {
             });
 
             if (alunoEncontrado) {
-                setCorTextoPesquisa("#2e7d32"); // VERDE caso encontre
+                setCorTextoPesquisa('#2e7d32');
                 nomeAlunoPendenteRef.current = nomeExatoAluno;
                 setTurmaAtiva(nomeTurmaEncontrada);
+                mostrarFeedback('sucesso', 'Aluno encontrado', `${nomeExatoAluno} foi encontrado em ${nomeTurmaEncontrada}.`);
             } else {
-                setCorTextoPesquisa("#d32f2f"); // VERMELHO caso não encontre
+                setCorTextoPesquisa('#d32f2f');
+                mostrarFeedback('erro', 'Aluno não encontrado', 'Nenhum aluno com esse nome foi encontrado nas turmas cadastradas.');
             }
         } catch (error) {
-            console.error(error);
-            setCorTextoPesquisa("#d32f2f");
+            console.error('Erro ao pesquisar aluno:', error);
+            setCorTextoPesquisa('#d32f2f');
+            mostrarFeedback('erro', 'Erro na pesquisa', 'Não foi possível pesquisar o aluno.');
         } finally {
             setPesquisaCarregando(false);
         }
     };
 
-    useEffect(() => {
-        const buscarMetricasFaltas = async () => {
-            if (!turmaAtiva) return;
-            
-            setCarregando(true);
-            try {
-                const turmasRef = collection(db, "turmas");
-                const q = query(turmasRef, where("nome", "==", turmaAtiva));
-                const querySnapshot = await getDocs(q);
+    const dadosFaltasExibidasBloco = verTodasAsFaltas
+        ? historicoCompletoAluno
+        : historicoCompletoAluno.filter((item) => alunoSelecionado?.datasFaltas.includes(item.data));
 
-                if (!querySnapshot.empty) {
-                    const idTurma = querySnapshot.docs[0].id;
-                    const dadosTurma = querySnapshot.docs[0].data();
-                    const listaNomesAlunos = dadosTurma.alunos || [];
+    const totalFaltasTurma = alunos.reduce((acumulador, item) => acumulador + item.quantidadeFaltas, 0);
+    const alunosComFaltas = alunos.filter((aluno) => aluno.quantidadeFaltas > 0).length;
+    const maiorFaltas = alunos.length > 0 ? Math.max(...alunos.map((aluno) => aluno.quantidadeFaltas)) : 0;
 
-                    const chamadasRef = collection(db, "turmas", idTurma, "chamadas");
-                    const chamadasSnapshot = await getDocs(chamadasRef);
+    const renderizarFeedback = () => {
+        if (!feedback) return null;
 
-                    const registroDatasFaltas = {};
-                    listaNomesAlunos.forEach(nome => {
-                        registroDatasFaltas[nome] = [];
-                    });
+        return (
+            <div style={style.feedbackOverlay}>
+                <div
+                    style={{
+                        ...style.feedbackCard,
+                        borderColor:
+                            feedback.tipo === 'erro'
+                                ? '#fecaca'
+                                : feedback.tipo === 'carregando'
+                                    ? '#bfdbfe'
+                                    : '#bbf7d0'
+                    }}
+                >
+                    <div
+                        style={{
+                            ...style.feedbackIcone,
+                            backgroundColor:
+                                feedback.tipo === 'erro'
+                                    ? '#fee2e2'
+                                    : feedback.tipo === 'carregando'
+                                        ? '#dbeafe'
+                                        : '#dcfce7',
+                            color:
+                                feedback.tipo === 'erro'
+                                    ? '#dc2626'
+                                    : feedback.tipo === 'carregando'
+                                        ? '#2563eb'
+                                        : '#16a34a'
+                        }}
+                    >
+                        {feedback.tipo === 'erro' ? '!' : feedback.tipo === 'carregando' ? '⏳' : '✓'}
+                    </div>
 
-                    let diasContados = 0;
+                    <div>
+                        <h3 style={style.feedbackTitulo}>{feedback.titulo}</h3>
+                        <p style={style.feedbackMensagem}>{feedback.mensagem}</p>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
-                    chamadasSnapshot.forEach(docSnap => {
-                        const dadosChamada = docSnap.data();
-                        const dataDoc = dadosChamada.data;
-                        const faltasDoDia = dadosChamada.faltas || [];
+    const renderizarTurmas = () => {
+        return (
+            <div style={style.containerTurmas}>
+                {carregando && turmas.length === 0 && (
+                    <p style={style.textoVazio}>Carregando turmas...</p>
+                )}
 
-                        let correspondeAoFiltro = false;
+                {!carregando && turmas.length === 0 && (
+                    <div style={style.estadoVazio}>
+                        <strong>Nenhuma turma cadastrada.</strong>
+                        <span>Cadastre turmas e alunos antes de consultar métricas.</span>
 
-                        if (modoAnalise === "mes" && dataDoc?.startsWith(dataChamada)) correspondeAoFiltro = true;
-                        else if (modoAnalise === "media" && dataDoc?.startsWith(anoSelecionado)) correspondeAoFiltro = true;
-                        else if (modoAnalise === "periodo" && dataDoc && dataInicio && dataFim) correspondeAoFiltro = dataDoc >= dataInicio && dataDoc <= dataFim;
-                        else if (modoAnalise === "data-especifica" && dataDoc === dataEspecifica) correspondeAoFiltro = true;
-                        else if (modoAnalise === "semana" && dataDoc && semanaReferencia) {
-                            const dataRef = new Date(semanaReferencia + "T12:00:00");
-                            const diaDaSemana = dataRef.getDay();
-                            const distanciaParaSegunda = diaDaSemana === 0 ? -6 : 1 - diaDaSemana;
-                            const segunda = new Date(dataRef);
-                            segunda.setDate(dataRef.getDate() + distanciaParaSegunda);
-                            const sexta = new Date(segunda);
-                            sexta.setDate(segunda.getDate() + 4);
-                            correspondeAoFiltro = dataDoc >= segunda.toISOString().substring(0, 10) && dataDoc <= sexta.toISOString().substring(0, 10);
+                        <button
+                            className="button-padrao"
+                            style={style.btnGerenciar}
+                            onClick={() => navigate('/turmas')}
+                            disabled={botoesBloqueados}
+                        >
+                            Ir para Gerenciar
+                        </button>
+                    </div>
+                )}
+
+                {turmas.map((turma) => {
+                    const estaSelecionada = turmaAtiva === turma.nome;
+                    const totalAlunosTurma = (turma.alunos || []).length;
+
+                    return (
+                        <button
+                            key={turma.id}
+                            style={{
+                                ...style.btnTurma,
+                                backgroundColor: estaSelecionada ? '#e0d6ff' : '#ffffff',
+                                borderColor: estaSelecionada ? '#7c3aed' : '#e5e7eb'
+                            }}
+                            className="button-turma"
+                            onClick={() => setTurmaAtiva(turma.nome)}
+                            disabled={botoesBloqueados}
+                        >
+                            <div style={style.iconeTurma}>📊</div>
+
+                            <div style={style.infoTurma}>
+                                <strong>{turma.nome}</strong>
+                                <span>{totalAlunosTurma} aluno(s)</span>
+                            </div>
+
+                            {estaSelecionada && (
+                                <span style={style.marcadorSelecionado}>✓</span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    const renderizarListaAlunos = () => {
+        if (!turmaAtiva) {
+            return (
+                <div style={style.estadoVazio}>
+                    <strong>Nenhuma turma selecionada.</strong>
+                    <span>Escolha uma turma na lateral para visualizar as métricas.</span>
+                </div>
+            );
+        }
+
+        if (carregando) {
+            return <p style={style.textoVazio}>Carregando lista...</p>;
+        }
+
+        if (alunos.length === 0) {
+            return (
+                <div style={style.estadoVazio}>
+                    <strong>Nenhum aluno cadastrado nessa turma.</strong>
+                    <span>Cadastre alunos para começar a acompanhar as métricas.</span>
+
+                    <button
+                        className="button-padrao"
+                        style={style.btnGerenciar}
+                        onClick={() => navigate('/turmas')}
+                        disabled={botoesBloqueados}
+                    >
+                        Gerenciar alunos
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <ul style={style.listaAlunos}>
+                {alunos.map((aluno, index) => {
+                    const faltasDoAluno = aluno.quantidadeFaltas || 0;
+                    const porcentagem = totalFaltasTurma > 0 ? (faltasDoAluno / totalFaltasTurma) * 100 : 0;
+
+                    let corPreenchimento = '#e8f5e9';
+                    let backgroundStyle = '#ffffff';
+
+                    if (modoAnalise === 'data-especifica') {
+                        if (faltasDoAluno > 0) {
+                            corPreenchimento = '#ffebee';
+                            backgroundStyle = '#ffebee';
+                        }
+                    } else {
+                        if (faltasDoAluno > 0) {
+                            if (porcentagem < 25) corPreenchimento = '#e8f5e9';
+                            else if (porcentagem >= 25 && porcentagem <= 50) corPreenchimento = '#fff9c4';
+                            else corPreenchimento = '#ffebee';
                         }
 
-                        if (correspondeAoFiltro) {
-                            diasContados += 1; 
-                            faltasDoDia.forEach(f => {
-                                const nomeAluno = typeof f === 'string' ? f : f.nome;
-                                const tipoFalta = typeof f === 'string' ? 'regular' : f.tipo;
-
-                                // REGRA SOLICITADA: Faltas justificadas não entram na contagem dos filtros
-                                if (registroDatasFaltas[nomeAluno] !== undefined && tipoFalta !== 'justificada') {
-                                    registroDatasFaltas[nomeAluno].push({ data: dataDoc, tipo: tipoFalta });
-                                }
-                            });
-                        }
-                    });
-
-                    setTotalDiasLetivos(diasContados);
-
-                    const alunosEstruturados = listaNomesAlunos.map(nome => {
-                        const datasOrdenadas = registroDatasFaltas[nome].sort((a,b)=> a.data.localeCompare(b.data));
-                        return {
-                            nome: nome,
-                            quantidadeFaltas: datasOrdenadas.length, // Contagem sem as justificadas
-                            datasFaltas: datasOrdenadas.map(item => item.data)
-                        };
-                    });
-
-                    alunosEstruturados.sort((a, b) => b.quantidadeFaltas - a.quantidadeFaltas);
-                    setAlunos(alunosEstruturados);
-
-                    if (nomeAlunoPendenteRef.current) {
-                        const encontrarAluno = alunosEstruturados.find(a => a.nome === nomeAlunoPendenteRef.current);
-                        if (encontrarAluno) setAlunoSelecionado(encontrarAluno);
-                        nomeAlunoPendenteRef.current = null; 
-                    } else if (alunoSelecionado) {
-                        const recarregarSelecionado = alunosEstruturados.find(a => a.nome === alunoSelecionado.nome);
-                        if (recarregarSelecionado) setAlunoSelecionado(recarregarSelecionado);
+                        backgroundStyle = faltasDoAluno > 0
+                            ? `linear-gradient(to right, ${corPreenchimento} ${Math.max(porcentagem, 8)}%, #ffffff ${Math.max(porcentagem, 8)}%)`
+                            : '#ffffff';
                     }
-                } 
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setCarregando(false);
-            }
-        };
 
-        buscarMetricasFaltas();
-    }, [turmaAtiva, dataChamada, modoAnalise, dataInicio, dataFim, anoSelecionado, dataEspecifica, semanaReferencia]);
+                    const estaSelecionado = alunoSelecionado?.nome === aluno.nome;
 
-    // Define quais dados exibir na listagem rolável direita do bloco inferior
-    const dadosFaltasExibidasBloco = verTodasAsFaltas ? historicoCompletoAluno : historicoCompletoAluno.filter(item => alunoSelecionado?.datasFaltas.includes(item.data));
+                    return (
+                        <li
+                            key={`${aluno.nome}-${index}`}
+                            className="button-padrao"
+                            onClick={() => {
+                                setAlunoSelecionado(estaSelecionado ? null : aluno);
+                            }}
+                            style={{
+                                ...style.itemAluno,
+                                border: estaSelecionado ? '2px solid #1e3a8a' : '1px solid #e5e7eb',
+                                background: backgroundStyle
+                            }}
+                        >
+                            <div style={style.infoAluno}>
+                                <span style={style.numeroAluno}>{index + 1}</span>
+
+                                <span style={style.nomeAluno}>
+                                    {aluno.nome}
+                                </span>
+                            </div>
+
+                            <span
+                                style={{
+                                    ...style.tagFaltas,
+                                    color: faltasDoAluno > 0 ? '#d32f2f' : '#2e7d32'
+                                }}
+                            >
+                                {modoAnalise === 'data-especifica'
+                                    ? faltasDoAluno > 0 ? 'Faltou' : 'Presente'
+                                    : `${faltasDoAluno} falta(s)`
+                                }
+                            </span>
+                        </li>
+                    );
+                })}
+            </ul>
+        );
+    };
+
+    const renderizarPainelAluno = () => {
+        if (!alunoSelecionado) {
+            return (
+                <div style={style.painelAlunoVazio}>
+                    <strong>Selecione um aluno</strong>
+                    <span>Ao clicar em um aluno, você verá o histórico de faltas e poderá alterar faltas regulares para justificadas.</span>
+                </div>
+            );
+        }
+
+        return (
+            <div style={style.painelAluno}>
+                <div style={style.painelAlunoAcoes}>
+                    <div>
+                        <h3 style={style.tituloAlunoSelecionado}>
+                            📌 {alunoSelecionado.nome}
+                        </h3>
+
+                        <p style={style.subtituloAlunoSelecionado}>
+                            {verTodasAsFaltas
+                                ? 'Visualizando histórico completo geral.'
+                                : 'Visualizando faltas do filtro atual.'
+                            }
+                        </p>
+                    </div>
+
+                    <div style={style.botoesAluno}>
+                        <button
+                            className="button-padrao"
+                            onClick={() => setVerTodasAsFaltas(!verTodasAsFaltas)}
+                            style={{
+                                ...style.btnSecundario,
+                                backgroundColor: verTodasAsFaltas ? '#e0d6ff' : '#ffffff'
+                            }}
+                            disabled={botoesBloqueados}
+                        >
+                            {verTodasAsFaltas ? '✓ Histórico total' : 'Mostrar todas as faltas'}
+                        </button>
+
+                        {!modoEdicao ? (
+                            <button
+                                className="button-padrao"
+                                onClick={() => {
+                                    setModoEdicao(true);
+                                    setVerTodasAsFaltas(true);
+                                }}
+                                style={style.btnEditar}
+                                disabled={botoesBloqueados}
+                            >
+                                Alterar status das faltas
+                            </button>
+                        ) : (
+                            <div style={style.botoesEdicao}>
+                                <button
+                                    className="button-padrao"
+                                    onClick={() => {
+                                        setModoEdicao(false);
+                                        setHistoricoEdicaoTemporario(historicoCompletoAluno);
+                                    }}
+                                    style={style.btnCancelarEdicao}
+                                    disabled={botoesBloqueados}
+                                >
+                                    Cancelar
+                                </button>
+
+                                <button
+                                    className="button-padrao"
+                                    onClick={handleSalvarEdicaoFirebase}
+                                    disabled={botoesBloqueados}
+                                    style={style.btnSalvarEdicao}
+                                >
+                                    {salvandoEdicao ? 'Aguarde...' : 'Gravar'}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div style={style.painelHistorico}>
+                    <h4 style={style.tituloHistorico}>
+                        {modoEdicao ? '👉 Escolha os dias para justificar:' : 'Lista de faltas registradas:'}
+                    </h4>
+
+                    <div style={style.listaHistorico}>
+                        {carregandoHistorico ? (
+                            <span style={style.textoVazio}>Carregando dados...</span>
+                        ) : dadosFaltasExibidasBloco.length > 0 ? (
+                            (modoEdicao ? historicoEdicaoTemporario : dadosFaltasExibidasBloco).map((item, idx) => {
+                                const ehJustificada = item.tipo === 'justificada';
+
+                                return (
+                                    <div
+                                        key={`${item.data}-${idx}`}
+                                        onClick={() => alternarTipoFaltaTemporaria(item.data)}
+                                        style={{
+                                            ...style.itemHistorico,
+                                            color: ehJustificada ? '#2e7d32' : '#c0392b',
+                                            backgroundColor: ehJustificada ? '#e8f5e9' : '#fdf2f2',
+                                            borderLeft: ehJustificada ? '4px solid #4caf50' : '4px solid #e74c3c',
+                                            cursor: modoEdicao ? 'pointer' : 'default'
+                                        }}
+                                    >
+                                        <span>📅 {formatarNovaData(item.data)}</span>
+
+                                        <span style={style.tagHistorico}>
+                                            {ehJustificada ? 'Justificada ✓' : 'Regular'}
+                                        </span>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <span style={style.semFaltas}>
+                                ✓ Nenhuma falta neste período.
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div style={style.containerPrincipal}>
-            <div style={{display: 'flex', flexDirection: 'row', gap: '15px'}}>
-                <button className='button-padrao' style={style.buttonVoltar} onClick={()=> navigate(-1)}>
-                    <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }}/>
-                </button>
-                <h1>Métricas de Frequência</h1>
-            </div>
-            <hr />
-            <div style={{display: 'flex', flexDirection: 'row', height: '630px', width: '100%', gap: '10px'}}>
-                
-                {/* LISTA DE TURMAS */}
-                <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '5px'}}>
-                    <h2>Turmas</h2>
-                    <div style={style.containerTurmas}>
-                        {["1° Ano A", "1° Ano B", "1° Ano C", "2° Ano A", "2° Ano B", "2° Ano C", "2° Ano D", "3° Ano A", "3° Ano B", "3° Ano C"].map((turma) => (
-                            <button 
-                                key={turma}
-                                style={{backgroundColor: turmaAtiva === turma ? "#e0d6ff" : "#fff", padding: turmaAtiva === turma ? "25px" : "15px"}} 
-                                className='button-turma'
-                                onClick={() => setTurmaAtiva(turma)}
-                            >
-                                <p style={{fontSize: '23px'}}><strong>{turma}</strong></p>
-                            </button>
-                        ))}
+            {renderizarFeedback()}
+
+            <header style={style.header}>
+                <div style={style.headerEsquerda}>
+                    <button
+                        className="button-padrao"
+                        style={style.buttonVoltar}
+                        onClick={() => navigate(-1)}
+                        disabled={botoesBloqueados}
+                    >
+                        <img src={icone08} alt="Voltar" style={{ width: '30px', height: '30px' }} />
+                    </button>
+
+                    <div>
+                        <h1 style={style.tituloPagina}>Métricas de Frequência</h1>
+                        <p style={style.subtituloPagina}>
+                            Analise faltas por turma, período e aluno.
+                        </p>
                     </div>
                 </div>
 
-                {/* LISTA DE ALUNOS */}
-                <div style={{display: 'flex', flexDirection: 'column', width: '700px', gap: '5px'}}>
-                    <div style={{display: 'flex', flexDirection: 'row', width: '100%', gap: '5px', alignItems: 'center'}}>
-                        <h2>Alunos</h2>
+                <form onSubmit={lidarComPesquisa} style={style.formPesquisa}>
+                    <input
+                        type="text"
+                        placeholder="🔍 Pesquisar aluno..."
+                        value={termoPesquisa}
+                        onChange={(e) => {
+                            setTermoPesquisa(e.target.value);
+                            setCorTextoPesquisa('#334155');
+                        }}
+                        style={{
+                            ...style.inputPesquisa,
+                            color: corTextoPesquisa,
+                            borderColor: corTextoPesquisa !== '#334155' ? corTextoPesquisa : '#cbd5e1'
+                        }}
+                        disabled={botoesBloqueados}
+                    />
+
+                    <button
+                        type="submit"
+                        className="button-padrao"
+                        disabled={botoesBloqueados}
+                        style={style.botaoPesquisa}
+                    >
+                        {pesquisaCarregando ? '...' : 'Buscar'}
+                    </button>
+                </form>
+            </header>
+
+            <hr style={style.linha} />
+
+            <main style={style.layoutPrincipal}>
+                <aside style={style.colunaTurmas}>
+                    <div style={style.cabecalhoSecaoCompacto}>
+                        <h2 style={style.tituloSecao}>Turmas</h2>
+                        <span style={style.contador}>{turmas.length}</span>
                     </div>
-                    
-                    <div style={style.containerConteudoTurmas}>
-                        {turmaAtiva ? (
-                            <>
-                                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '5px'}}>
-                                    <span style={{fontSize:'14px', color:'#666', fontWeight:'600'}}>
-                                        Dias letivos no filtro: {totalDiasLetivos} (Justificadas ocultadas)
-                                    </span>
-                                    <form onSubmit={lidarComPesquisa} style={{display: 'flex', flexDirection: 'row', gap: '5px', marginLeft: 'auto'}}>
-                                        <input 
-                                            type="text" 
-                                            placeholder="🔍 Pesquisar aluno..." 
-                                            value={termoPesquisa}
-                                            onChange={(e) => {
-                                                setTermoPesquisa(e.target.value);
-                                                setCorTextoPesquisa("#333"); // Reseta para cor padrão ao digitar
-                                            }}
-                                            // MODIFICADO: Cor do texto muda dinamicamente para vermelho ou verde
-                                            style={{ ...style.inputPesquisa, color: corTextoPesquisa, borderColor: corTextoPesquisa !== "#333" ? corTextoPesquisa : '#ccc' }}
-                                        />
-                                        <button 
-                                            type="submit" 
-                                            className='button-padrao' 
-                                            disabled={pesquisaCarregando}
-                                            style={{ ...style.botaoPesquisa, backgroundColor: '#1e3a8a' }}
-                                        >
-                                            {pesquisaCarregando ? '...' : 'Buscar'}
-                                        </button>
-                                    </form>
-                                </div>
-                                {carregando ? (
-                                    <p>Carregando lista...</p>
-                                ) : (
-                                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '3px', overflowY: 'auto', overflowX: 'hidden'}}>
-                                        {alunos.map((aluno, index) => {
-                                            const faltasDoAluno = aluno.quantidadeFaltas || 0; 
-                                            const totalFaltasTurma = alunos.reduce((acumulador, item) => acumulador + item.quantidadeFaltas, 0);
-                                            const porcentagem = totalFaltasTurma > 0 ? (faltasDoAluno / totalFaltasTurma) * 100 : 0;
 
-                                            let corPreenchimento = '#e8f5e9';
-                                            let backgroundStyle = '#ffffff';
+                    {renderizarTurmas()}
+                </aside>
 
-                                            if (modoAnalise === "data-especifica") {
-                                                if (faltasDoAluno > 0) { corPreenchimento = '#ffebee'; backgroundStyle = '#ffebee'; }
-                                            } else {
-                                                if (faltasDoAluno > 0) {
-                                                    if (porcentagem < 25) corPreenchimento = '#e8f5e9';
-                                                    else if (porcentagem >= 25 && porcentagem <= 50) corPreenchimento = '#fff9c4';
-                                                    else corPreenchimento = '#ffebee';
-                                                }
-                                                backgroundStyle = faltasDoAluno > 0
-                                                    ? `linear-gradient(to right, ${corPreenchimento} ${porcentagem}%, #ffffff ${porcentagem}%)`
-                                                    : '#ffffff';
-                                            }
+                <section style={style.colunaCentro}>
+                    <div style={style.cardsResumo}>
+                        <div style={style.cardResumo}>
+                            <span>Dias letivos no filtro</span>
+                            <strong>{totalDiasLetivos}</strong>
+                        </div>
 
-                                            const estaSelecionado = alunoSelecionado?.nome === aluno.nome;
+                        <div style={style.cardResumo}>
+                            <span>Faltas regulares</span>
+                            <strong>{totalFaltasTurma}</strong>
+                        </div>
 
-                                            return (
-                                                <li
-                                                    key={index}
-                                                    className='button-padrao'
-                                                    onClick={() => setAlunoSelecionado(estaSelecionado ? null : aluno)}
-                                                    style={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                        padding: '11px 16px',
-                                                        borderRadius: '12px',
-                                                        boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-                                                        border: estaSelecionado ? '2px solid #1e3a8a' : '1px solid #e5e7eb',
-                                                        background: backgroundStyle,
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s ease'
-                                                    }}
-                                                >
-                                                    <span style={{ fontSize: '18px', fontWeight: '500', color: '#333' }}>
-                                                        {index + 1}. {aluno.nome}
-                                                    </span>
+                        <div style={style.cardResumo}>
+                            <span>Alunos com faltas</span>
+                            <strong>{alunosComFaltas}</strong>
+                        </div>
 
-                                                    <span style={{
-                                                            fontSize: '16px',
-                                                            fontWeight: 'bold',
-                                                            color: faltasDoAluno > 0 ? '#d32f2f' : '#2e7d32',
-                                                            backgroundColor: 'rgba(255,255,255,0.8)',
-                                                            padding: '4px 10px',
-                                                            borderRadius: '20px',
-                                                            border: '1px solid #e5e7eb'
-                                                    }}>
-                                                        {modoAnalise === "data-especifica" ? (faltasDoAluno > 0 ? 'Faltou' : 'Presente') : `${faltasDoAluno} faltas`}
-                                                    </span>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-                            </>
-                        ) : (
-                            <p>Selecione uma turma para ver os alunos.</p>
-                        )}
-                    </div>
-                    
-                    {/* SEÇÃO INFERIOR REESTRUTURADA E DIVIDIDA EM DOIS LADOS */}
-                    <div style={{display: 'flex', flexDirection: 'row', gap: '5px', marginTop: '5px', height: '260px', width: '700px', justifyContent: 'space-between'}}>
-                        <div style={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            padding: '15px',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid #ddd',
-                            borderRadius: '15px',
-                            height: '100%', 
-                            width: '100%',
-                            gap: '15px'
-                        }}>
-                            {alunoSelecionado ? (
-                                <>
-                                    {/* METADE ESQUERDA: CONTROLES E BOTÕES DE AÇÃO */}
-                                    <div style={{ width: '50%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '1px solid #eee', paddingRight: '10px' }}>
-                                        <div>
-                                            <h3 style={{ margin: '0 0 5px 0', fontSize: '18px', color: '#1e3a8a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                📌 {alunoSelecionado.nome}
-                                            </h3>
-                                            <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#555', fontWeight: '500' }}>
-                                                {verTodasAsFaltas ? "Visualizando Histórico Completo Geral" : "Visualizando Faltas no Filtro Atual"}
-                                            </p>
-                                        </div>
-
-                                        {/* GRUPO DE BOTÕES SOLICITADOS */}
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                                            <button 
-                                                onClick={() => setVerTodasAsFaltas(!verTodasAsFaltas)}
-                                                style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #1e3a8a', backgroundColor: verTodasAsFaltas ? '#e0d6ff' : 'transparent', color: '#1e3a8a', fontWeight: 'bold', cursor: 'pointer' }}
-                                            >
-                                                {verTodasAsFaltas ? "✓ Vendo Histórico Total" : "Mostrar Todas as Faltas"}
-                                            </button>
-
-                                            {!modoEdicao ? (
-                                                <button 
-                                                    onClick={() => { setModoEdicao(true); setVerTodasAsFaltas(true); }} // Abre em modo completo para melhor edição
-                                                    style={{ width: '100%', padding: '8px', borderRadius: '8px', border: 'none', backgroundColor: '#f39c12', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}
-                                                >
-                                                    Alterar Status das Faltas
-                                                </button>
-                                            ) : (
-                                                <div style={{ display: 'flex', gap: '5px', width: '100%' }}>
-                                                    <button 
-                                                        onClick={() => { setModoEdicao(false); setHistoricoEdicaoTemporario(historicoCompletoAluno); }}
-                                                        style={{ flex: 1, padding: '8px', borderRadius: '8px', border: '1px solid #757575', backgroundColor: '#fff', color: '#757575', fontWeight: 'bold', cursor: 'pointer' }}
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                    <button 
-                                                        onClick={handleSalvarEdicaoFirebase}
-                                                        disabled={salvandoEdicao}
-                                                        style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', backgroundColor: '#2ecc71', color: '#fff', fontWeight: 'bold', cursor: salvandoEdicao ? 'not-allowed' : 'pointer' }}
-                                                    >
-                                                        {salvandoEdicao ? 'Aguarde...' : 'Gravar'}
-                                                    </button>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                    
-                                    {/* METADE DIREITA: LISTAGEM DE DATA E TIPOS COM SELEÇÃO */}
-                                    <div style={{ width: '50%', display: 'flex', flexDirection: 'column' }}>
-                                        <h4 style={{ margin: '0 0 8px 0', fontSize: '15px', color: '#333' }}>
-                                            {modoEdicao ? "👉 Escolha os dias para Justificar:" : "Lista de Faltas Registradas:"}
-                                        </h4>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1, paddingRight: '5px' }}>
-                                            {carregandoHistorico ? (
-                                                <span style={{ fontSize: '13px', color: '#666', fontStyle: 'italic' }}>Carregando dados...</span>
-                                            ) : dadosFaltasExibidasBloco.length > 0 ? (
-                                                (modoEdicao ? historicoEdicaoTemporario : dadosFaltasExibidasBloco).map((item, idx) => {
-                                                    const ehJustificada = item.tipo === 'justificada';
-                                                    return (
-                                                        <div 
-                                                            key={idx} 
-                                                            onClick={() => alternarTipoFaltaTemporaria(item.data)}
-                                                            style={{ 
-                                                                fontSize: '14px', 
-                                                                color: ehJustificada ? '#2e7d32' : '#c0392b', 
-                                                                fontWeight: '500', 
-                                                                backgroundColor: ehJustificada ? '#e8f5e9' : '#fdf2f2', 
-                                                                padding: '6px 10px', 
-                                                                borderRadius: '6px', 
-                                                                borderLeft: ehJustificada ? '4px solid #4caf50' : '4px solid #e74c3c',
-                                                                display: 'flex',
-                                                                justifyContent: 'space-between',
-                                                                cursor: modoEdicao ? 'pointer' : 'default',
-                                                                userSelect: 'none',
-                                                                boxShadow: modoEdicao ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-                                                            }}
-                                                        >
-                                                            <span>📅 {formatarNovaData(item.data)}</span>
-                                                            <span style={{ fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-                                                                {ehJustificada ? 'Justificada ✓' : 'Regular'}
-                                                            </span>
-                                                        </div>
-                                                    );
-                                                })
-                                            ) : (
-                                                <span style={{ fontSize: '14px', color: '#27ae60', fontWeight: '500', margin: 'auto' }}>
-                                                    ✓ Nenhuma falta neste período.
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <p style={{ margin: 'auto', textAlign: 'center', color: '#999', fontSize: '15px' }}>
-                                    Selecione um aluno da listagem para analisar seu painel detalhado de justificativas.
-                                </p>
-                            )}
+                        <div style={style.cardResumo}>
+                            <span>Maior total individual</span>
+                            <strong>{maiorFaltas}</strong>
                         </div>
                     </div>
-                </div>
 
-                {/* PAINEL LATERAL DE OPÇÕES DE ANÁLISE */}
-                <div style={{display: 'flex', flexDirection: 'column', width: '300px', gap: '10px'}}>
-                    <h2>Opções de Análise</h2>
+                    <div style={style.painelListaAlunos}>
+                        <div style={style.cabecalhoSecao}>
+                            <div>
+                                <h2 style={style.tituloSecao}>Alunos</h2>
+                                <p style={style.subtituloSecao}>
+                                    {turmaAtiva
+                                        ? `${turmaAtiva} — ${obterDescricaoFiltro()}`
+                                        : 'Selecione uma turma para visualizar os alunos.'
+                                    }
+                                </p>
+                            </div>
+
+                            <span style={style.avisoJustificadas}>
+                                Justificadas não entram na contagem
+                            </span>
+                        </div>
+
+                        <div style={style.containerConteudoTurmas}>
+                            {renderizarListaAlunos()}
+                        </div>
+                    </div>
+
+                    {renderizarPainelAluno()}
+                </section>
+
+                <aside style={style.colunaOpcoes}>
+                    <h2 style={style.tituloSecao}>Opções de Análise</h2>
+
                     <div style={style.containerOpcoes}>
-                        {/* Botão Data Específica */}
-                        <button 
-                            onClick={() => setModoAnalise("data-especifica")}
-                            style={{ ...style.btnFiltroOpcao, borderLeft: modoAnalise === "data-especifica" ? "5px solid #1e3a8a" : "5px solid transparent", backgroundColor: modoAnalise === "data-especifica" ? "#e0d6ff" : "#f8f9fa" }}
+                        <button
+                            onClick={() => setModoAnalise('data-especifica')}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === 'data-especifica' ? '5px solid #1e3a8a' : '5px solid transparent',
+                                backgroundColor: modoAnalise === 'data-especifica' ? '#e0d6ff' : '#f8f9fa'
+                            }}
+                            disabled={botoesBloqueados}
                         >
                             📅 Analisar por Data
                         </button>
-                        {modoAnalise === "data-especifica" && (
+
+                        {modoAnalise === 'data-especifica' && (
                             <div style={style.boxConfigInternoInput}>
-                                <input type="date" value={dataEspecifica} onChange={(e) => setDataEspecifica(e.target.value)} style={style.inputDataPeriodoFiltro}/>
+                                <input
+                                    type="date"
+                                    value={dataEspecifica}
+                                    onChange={(e) => setDataEspecifica(e.target.value)}
+                                    style={style.inputDataPeriodoFiltro}
+                                    disabled={botoesBloqueados}
+                                />
                             </div>
                         )}
 
-                        {/* Analisar Semanalmente */}
-                        <button 
-                            onClick={() => setModoAnalise("semana")}
-                            style={{ ...style.btnFiltroOpcao, borderLeft: modoAnalise === "semana" ? "5px solid #1e3a8a" : "5px solid transparent", backgroundColor: modoAnalise === "semana" ? "#e0d6ff" : "#f8f9fa" }}
+                        <button
+                            onClick={() => setModoAnalise('semana')}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === 'semana' ? '5px solid #1e3a8a' : '5px solid transparent',
+                                backgroundColor: modoAnalise === 'semana' ? '#e0d6ff' : '#f8f9fa'
+                            }}
+                            disabled={botoesBloqueados}
                         >
                             📅 Analisar Semanalmente
                         </button>
-                        {modoAnalise === "semana" && (
+
+                        {modoAnalise === 'semana' && (
                             <div style={style.boxConfigInternoInput}>
-                                <input type="date" value={semanaReferencia} onChange={(e) => setSemanaReferencia(e.target.value)} style={style.inputDataPeriodoFiltro}/>
+                                <input
+                                    type="date"
+                                    value={semanaReferencia}
+                                    onChange={(e) => setSemanaReferencia(e.target.value)}
+                                    style={style.inputDataPeriodoFiltro}
+                                    disabled={botoesBloqueados}
+                                />
                             </div>
                         )}
-                        
-                        {/* Botão Mês Específico */}
-                        <button 
-                            onClick={() => setModoAnalise("mes")}
-                            style={{ ...style.btnFiltroOpcao, borderLeft: modoAnalise === "mes" ? "5px solid #1e3a8a" : "5px solid transparent", backgroundColor: modoAnalise === "mes" ? "#e0d6ff" : "#f8f9fa" }}
+
+                        <button
+                            onClick={() => setModoAnalise('mes')}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === 'mes' ? '5px solid #1e3a8a' : '5px solid transparent',
+                                backgroundColor: modoAnalise === 'mes' ? '#e0d6ff' : '#f8f9fa'
+                            }}
+                            disabled={botoesBloqueados}
                         >
                             📊 Histórico Mensal
                         </button>
-                        {modoAnalise === "mes" && (
+
+                        {modoAnalise === 'mes' && (
                             <div style={style.boxConfigInternoInput}>
-                                <input type="month" value={dataChamada} onChange={(e) => setDataChamada(e.target.value)} style={style.inputDataPeriodoFiltro}/>
+                                <input
+                                    type="month"
+                                    value={dataChamada}
+                                    onChange={(e) => setDataChamada(e.target.value)}
+                                    style={style.inputDataPeriodoFiltro}
+                                    disabled={botoesBloqueados}
+                                />
                             </div>
                         )}
 
-                        {/* Botão Média Total Histórica */}
-                        <button 
-                            onClick={() => setModoAnalise("media")}
-                            style={{ ...style.btnFiltroOpcao, borderLeft: modoAnalise === "media" ? "5px solid #1e3a8a" : "5px solid transparent", backgroundColor: modoAnalise === "media" ? "#e0d6ff" : "#f8f9fa" }}
+                        <button
+                            onClick={() => setModoAnalise('media')}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === 'media' ? '5px solid #1e3a8a' : '5px solid transparent',
+                                backgroundColor: modoAnalise === 'media' ? '#e0d6ff' : '#f8f9fa'
+                            }}
+                            disabled={botoesBloqueados}
                         >
                             📊 Histórico Anual
                         </button>
-                        {modoAnalise === "media" && (
+
+                        {modoAnalise === 'media' && (
                             <div style={style.boxConfigInternoInput}>
-                                <select value={anoSelecionado} onChange={(e) => setAnoSelecionado(e.target.value)} style={style.inputDataPeriodoFiltro}>
-                                    <option value="2026">2026</option>
-                                    <option value="2025">2025</option>
-                                </select>
+                                <input
+                                    type="number"
+                                    min="2020"
+                                    max="2100"
+                                    value={anoSelecionado}
+                                    onChange={(e) => setAnoSelecionado(e.target.value)}
+                                    style={style.inputDataPeriodoFiltro}
+                                    disabled={botoesBloqueados}
+                                />
                             </div>
                         )}
 
-                        {/* Botão Entre Datas */}
-                        <button 
-                            onClick={() => setModoAnalise("periodo")}
-                            style={{ ...style.btnFiltroOpcao, borderLeft: modoAnalise === "periodo" ? "5px solid #1e3a8a" : "5px solid transparent", backgroundColor: modoAnalise === "periodo" ? "#e0d6ff" : "#f8f9fa" }}
+                        <button
+                            onClick={() => setModoAnalise('periodo')}
+                            style={{
+                                ...style.btnFiltroOpcao,
+                                borderLeft: modoAnalise === 'periodo' ? '5px solid #1e3a8a' : '5px solid transparent',
+                                backgroundColor: modoAnalise === 'periodo' ? '#e0d6ff' : '#f8f9fa'
+                            }}
+                            disabled={botoesBloqueados}
                         >
                             📅 Intervalo de Período
                         </button>
-                        {modoAnalise === "periodo" && (
-                            <div style={{...style.boxConfigInternoInput, display:'flex', flexDirection:'column', gap:'4px'}}>
-                                <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} style={style.inputDataPeriodoFiltro}/>
-                                <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} style={style.inputDataPeriodoFiltro}/>
+
+                        {modoAnalise === 'periodo' && (
+                            <div style={{ ...style.boxConfigInternoInput, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <input
+                                    type="date"
+                                    value={dataInicio}
+                                    onChange={(e) => setDataInicio(e.target.value)}
+                                    style={style.inputDataPeriodoFiltro}
+                                    disabled={botoesBloqueados}
+                                />
+
+                                <input
+                                    type="date"
+                                    value={dataFim}
+                                    onChange={(e) => setDataFim(e.target.value)}
+                                    style={style.inputDataPeriodoFiltro}
+                                    disabled={botoesBloqueados}
+                                />
                             </div>
                         )}
                     </div>
-                </div>
-
-            </div>
+                </aside>
+            </main>
         </div>
     );
 }
@@ -645,54 +1064,71 @@ function Metricas() {
 const style = {
     containerPrincipal: {
         backgroundColor: 'rgb(245, 245, 245)',
-        padding: '15px',
-        borderRadius: '12px',
+        padding: '18px',
+        borderRadius: '18px',
         boxShadow: '0 10px 25px rgba(0, 0, 0, 0.3)',
-        width: '1300px',
-        height: '710px',
+        width: '1360px',
+        height: '740px',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        gap: '4px',
+        gap: '8px',
+        position: 'relative'
     },
-    containerTurmas: {
+
+    header: {
         display: 'flex',
-        flexDirection: 'column', 
-        height: '630px', 
-        width: '100%',
-        gap: '8px', 
-        padding: '10px', 
-        border: '1px solid #ddd',
-        borderRadius: '15px',
-        overflowY: 'auto', 
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '16px'
     },
-    containerOpcoes: {
+
+    headerEsquerda: {
         display: 'flex',
-        flexDirection: 'column', 
-        height: '630px', 
-        width: '100%',
-        gap: '8px', 
-        padding: '10px', 
-        border: '1px solid #ddd',
-        borderRadius: '15px',
-        overflowY: 'auto', 
+        alignItems: 'center',
+        gap: '15px'
     },
-    containerConteudoTurmas: {
+
+    buttonVoltar: {
+        borderRadius: '80px',
+        backgroundColor: 'transparent',
+        width: '34px',
+        height: '34px',
+        cursor: 'pointer',
+        border: 'none',
         display: 'flex',
-        flexDirection: 'column', 
-        height: '340px', 
-        width: '100%', 
-        gap: '5px', 
-        padding: '10px', 
-        border: '1px solid #ddd',
-        borderRadius: '15px',
+        alignItems: 'center',
+        justifyContent: 'center'
     },
+
+    tituloPagina: {
+        margin: 0,
+        fontSize: '32px',
+        color: '#1e293b'
+    },
+
+    subtituloPagina: {
+        margin: '3px 0 0 0',
+        color: '#64748b',
+        fontSize: '15px'
+    },
+
+    formPesquisa: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        backgroundColor: '#ffffff',
+        padding: '7px',
+        borderRadius: '14px',
+        border: '1px solid #e2e8f0'
+    },
+
     inputPesquisa: {
-        width: '240px',
-        height: '32px',
-        padding: '6px 10px',
-        borderRadius: '8px',
-        border: '1px solid #ccc',
+        width: '250px',
+        height: '36px',
+        padding: '7px 11px',
+        borderRadius: '10px',
+        border: '1px solid #cbd5e1',
         fontSize: '15px',
         boxSizing: 'border-box',
         outline: 'none',
@@ -700,48 +1136,527 @@ const style = {
         fontFamily: 'inherit',
         fontWeight: '500'
     },
+
     botaoPesquisa: {
-        width: '70px',
-        height: '32px',
-        color: '#fff',
+        height: '36px',
+        color: '#ffffff',
         border: 'none',
-        borderRadius: '8px',
-        fontSize: '13px',
+        borderRadius: '10px',
+        fontSize: '14px',
         fontWeight: 'bold',
         cursor: 'pointer',
+        backgroundColor: '#1e3a8a',
+        padding: '0 14px'
     },
-    buttonVoltar: {
-        borderRadius: '80px',
-        backgroundColor: 'transparent',
+
+    linha: {
+        border: 'none',
+        borderTop: '1px solid #e2e8f0',
+        width: '100%',
+        margin: '4px 0'
+    },
+
+    layoutPrincipal: {
+        display: 'grid',
+        gridTemplateColumns: '300px 1fr 300px',
+        gap: '14px',
+        flex: 1,
+        minHeight: 0
+    },
+
+    colunaTurmas: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '18px',
+        padding: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        minHeight: 0
+    },
+
+    colunaCentro: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        minHeight: 0
+    },
+
+    colunaOpcoes: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '18px',
+        padding: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        minHeight: 0
+    },
+
+    cabecalhoSecaoCompacto: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+
+    cabecalhoSecao: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: '12px'
+    },
+
+    tituloSecao: {
+        margin: 0,
+        color: '#1e293b',
+        fontSize: '22px'
+    },
+
+    subtituloSecao: {
+        margin: '4px 0 0 0',
+        color: '#64748b',
+        fontSize: '14px',
+        lineHeight: 1.45
+    },
+
+    contador: {
+        backgroundColor: '#e0d6ff',
+        color: '#4c1d95',
+        fontWeight: 'bold',
+        borderRadius: '999px',
+        padding: '6px 12px',
+        fontSize: '13px',
+        whiteSpace: 'nowrap'
+    },
+
+    containerTurmas: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        gap: '8px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        paddingRight: '4px'
+    },
+
+    btnTurma: {
+        border: '2px solid #e5e7eb',
+        borderRadius: '15px',
+        padding: '12px',
+        cursor: 'pointer',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        color: '#1e293b',
+        transition: 'all 0.2s ease'
+    },
+
+    iconeTurma: {
+        width: '38px',
+        height: '38px',
+        borderRadius: '12px',
+        backgroundColor: '#f1f5f9',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '20px',
+        flexShrink: 0
+    },
+
+    infoTurma: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2px',
+        flex: 1,
+        fontSize: '17px'
+    },
+
+    marcadorSelecionado: {
+        width: '25px',
+        height: '25px',
+        borderRadius: '50%',
+        backgroundColor: '#7c3aed',
+        color: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold'
+    },
+
+    cardsResumo: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '10px'
+    },
+
+    cardResumo: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '15px',
+        padding: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        color: '#64748b',
+        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)'
+    },
+
+    painelListaAlunos: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '18px',
+        padding: '14px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px',
+        flex: 1,
+        minHeight: 0
+    },
+
+    avisoJustificadas: {
+        backgroundColor: '#eff6ff',
+        color: '#1e3a8a',
+        borderRadius: '999px',
+        padding: '6px 10px',
+        fontWeight: 'bold',
+        fontSize: '12px',
+        whiteSpace: 'nowrap'
+    },
+
+    containerConteudoTurmas: {
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        minHeight: 0,
+        width: '100%',
+        gap: '6px',
+        padding: '10px',
+        border: '1px solid #e2e8f0',
+        borderRadius: '15px',
+        overflowY: 'auto',
+        overflowX: 'hidden',
+        backgroundColor: '#f8fafc'
+    },
+
+    listaAlunos: {
+        listStyle: 'none',
+        padding: 0,
+        margin: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '7px'
+    },
+
+    itemAluno: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 14px',
+        borderRadius: '14px',
+        boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease'
+    },
+
+    infoAluno: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+    },
+
+    numeroAluno: {
         width: '30px',
         height: '30px',
-        cursor: 'pointer',
-        border: 'none',
+        borderRadius: '50%',
+        backgroundColor: '#e0d6ff',
+        color: '#4c1d95',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+        fontSize: '14px'
     },
+
+    nomeAluno: {
+        fontSize: '18px',
+        fontWeight: '600',
+        color: '#1e293b'
+    },
+
+    tagFaltas: {
+        fontSize: '15px',
+        fontWeight: 'bold',
+        backgroundColor: 'rgba(255,255,255,0.85)',
+        padding: '5px 10px',
+        borderRadius: '999px',
+        border: '1px solid #e5e7eb'
+    },
+
+    painelAluno: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '18px',
+        padding: '14px',
+        height: '230px',
+        display: 'grid',
+        gridTemplateColumns: '45% 1fr',
+        gap: '12px'
+    },
+
+    painelAlunoVazio: {
+        backgroundColor: '#ffffff',
+        border: '1px dashed #cbd5e1',
+        borderRadius: '18px',
+        padding: '20px',
+        height: '230px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        textAlign: 'center',
+        gap: '8px',
+        color: '#64748b'
+    },
+
+    painelAlunoAcoes: {
+        borderRight: '1px solid #e2e8f0',
+        paddingRight: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        gap: '10px'
+    },
+
+    tituloAlunoSelecionado: {
+        margin: 0,
+        fontSize: '19px',
+        color: '#1e3a8a',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap'
+    },
+
+    subtituloAlunoSelecionado: {
+        margin: '5px 0 0 0',
+        fontSize: '14px',
+        color: '#64748b'
+    },
+
+    botoesAluno: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+    },
+
+    btnSecundario: {
+        width: '100%',
+        padding: '9px',
+        borderRadius: '10px',
+        border: '1px solid #1e3a8a',
+        color: '#1e3a8a',
+        fontWeight: 'bold',
+        cursor: 'pointer'
+    },
+
+    btnEditar: {
+        width: '100%',
+        padding: '9px',
+        borderRadius: '10px',
+        border: 'none',
+        backgroundColor: '#f39c12',
+        color: '#ffffff',
+        fontWeight: 'bold',
+        cursor: 'pointer'
+    },
+
+    botoesEdicao: {
+        display: 'flex',
+        gap: '6px',
+        width: '100%'
+    },
+
+    btnCancelarEdicao: {
+        flex: 1,
+        padding: '9px',
+        borderRadius: '10px',
+        border: '1px solid #64748b',
+        backgroundColor: '#ffffff',
+        color: '#64748b',
+        fontWeight: 'bold',
+        cursor: 'pointer'
+    },
+
+    btnSalvarEdicao: {
+        flex: 1,
+        padding: '9px',
+        borderRadius: '10px',
+        border: 'none',
+        backgroundColor: '#2ecc71',
+        color: '#ffffff',
+        fontWeight: 'bold',
+        cursor: 'pointer'
+    },
+
+    painelHistorico: {
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: 0
+    },
+
+    tituloHistorico: {
+        margin: '0 0 8px 0',
+        fontSize: '15px',
+        color: '#334155'
+    },
+
+    listaHistorico: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '5px',
+        overflowY: 'auto',
+        flex: 1,
+        paddingRight: '5px'
+    },
+
+    itemHistorico: {
+        fontSize: '14px',
+        fontWeight: '600',
+        padding: '7px 10px',
+        borderRadius: '8px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        userSelect: 'none'
+    },
+
+    tagHistorico: {
+        fontSize: '11px',
+        fontWeight: 'bold',
+        textTransform: 'uppercase'
+    },
+
+    semFaltas: {
+        fontSize: '15px',
+        color: '#27ae60',
+        fontWeight: '600',
+        margin: 'auto',
+        textAlign: 'center'
+    },
+
+    containerOpcoes: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        width: '100%',
+        gap: '8px',
+        overflowY: 'auto',
+        paddingRight: '4px'
+    },
+
     btnFiltroOpcao: {
         width: '100%',
         padding: '14px',
         fontSize: '16px',
-        fontWeight: '600',
+        fontWeight: '700',
         color: '#2c3e50',
         border: '1px solid #dcdde1',
-        borderRadius: '10px',
+        borderRadius: '12px',
         textAlign: 'left',
         cursor: 'pointer',
+        transition: 'all 0.2s ease'
     },
+
     boxConfigInternoInput: {
-        backgroundColor: '#fff',
+        backgroundColor: '#ffffff',
         padding: '10px',
-        borderRadius: '10px',
-        border: '1px solid #e1e8ed',
+        borderRadius: '12px',
+        border: '1px solid #e1e8ed'
     },
+
     inputDataPeriodoFiltro: {
         width: '100%',
-        padding: '8px',
-        borderRadius: '6px',
-        border: '1px solid #ccc',
+        padding: '9px',
+        borderRadius: '8px',
+        border: '1px solid #cbd5e1',
         fontSize: '14px',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        outline: 'none'
+    },
+
+    estadoVazio: {
+        backgroundColor: '#ffffff',
+        border: '1px dashed #cbd5e1',
+        borderRadius: '14px',
+        padding: '18px',
+        color: '#64748b',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+        fontSize: '15px'
+    },
+
+    textoVazio: {
+        color: '#64748b',
+        fontSize: '15px',
+        margin: 0
+    },
+
+    btnGerenciar: {
+        backgroundColor: '#1e3a8a',
+        color: '#ffffff',
+        border: 'none',
+        borderRadius: '10px',
+        padding: '10px 12px',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        marginTop: '6px'
+    },
+
+    feedbackOverlay: {
+        position: 'absolute',
+        top: '18px',
+        right: '18px',
+        zIndex: 30,
+        pointerEvents: 'none'
+    },
+
+    feedbackCard: {
+        backgroundColor: '#ffffff',
+        border: '2px solid #bbf7d0',
+        borderRadius: '16px',
+        padding: '16px 20px',
+        boxShadow: '0 14px 35px rgba(15, 23, 42, 0.18)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        minWidth: '340px',
+        maxWidth: '460px'
+    },
+
+    feedbackIcone: {
+        width: '46px',
+        height: '46px',
+        borderRadius: '50%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: 'bold',
+        fontSize: '22px',
+        flexShrink: 0
+    },
+
+    feedbackTitulo: {
+        margin: 0,
+        color: '#1e293b',
+        fontSize: '18px'
+    },
+
+    feedbackMensagem: {
+        margin: '5px 0 0 0',
+        color: '#475569',
+        fontSize: '14px',
+        lineHeight: 1.45
     }
 };
 

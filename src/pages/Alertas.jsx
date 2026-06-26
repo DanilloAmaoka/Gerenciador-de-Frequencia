@@ -44,6 +44,9 @@ function Alertas() {
 
     const [feedback, setFeedback] = useState(null);
     const [confirmacaoExclusao, setConfirmacaoExclusao] = useState(null);
+    const [mostrarAjudaLogica, setMostrarAjudaLogica] = useState(false);
+
+    const botoesBloqueados = !!feedback;
 
     const mostrarFeedback = (tipo, titulo, mensagem) => {
         setFeedback({ tipo, titulo, mensagem });
@@ -62,6 +65,49 @@ function Alertas() {
         setAlunoSelecionado('');
         setQuantidadeFaltas('');
         setTipoPeriodo('Mensal');
+        setMostrarAjudaLogica(false);
+    };
+
+    const limparSelecoesLogica = () => {
+        setTipoAlvo('Turma');
+        setEscopo('Todos');
+        setTurmaSelecionada('');
+        setAlunoSelecionado('');
+        setQuantidadeFaltas('');
+        setTipoPeriodo('Mensal');
+    };
+
+    const aplicarPreMontagem = (modelo) => {
+        setTurmaSelecionada('');
+        setAlunoSelecionado('');
+
+        if (modelo === 'aluno-seguidas') {
+            setTipoAlvo('Aluno');
+            setEscopo('Todos');
+            setQuantidadeFaltas('3');
+            setTipoPeriodo('Seguidas');
+        }
+
+        if (modelo === 'aluno-mensal') {
+            setTipoAlvo('Aluno');
+            setEscopo('Todos');
+            setQuantidadeFaltas('5');
+            setTipoPeriodo('Mensal');
+        }
+
+        if (modelo === 'turma-mensal') {
+            setTipoAlvo('Turma');
+            setEscopo('Todos');
+            setQuantidadeFaltas('20');
+            setTipoPeriodo('Mensal');
+        }
+
+        if (modelo === 'turma-seguidas') {
+            setTipoAlvo('Turma');
+            setEscopo('Todos');
+            setQuantidadeFaltas('3');
+            setTipoPeriodo('Seguidas');
+        }
     };
 
     const formatarDataSimples = (dataISO) => {
@@ -513,6 +559,7 @@ function Alertas() {
                         className="button-padrao"
                         style={style.btnFecharDetalhes}
                         onClick={() => setAlertaDetalhado(null)}
+                    disabled={botoesBloqueados}
                     >
                         Fechar
                     </button>
@@ -562,6 +609,7 @@ function Alertas() {
                                         className="button-padrao"
                                         style={style.btnMarcarLido}
                                         onClick={() => marcarOcorrenciaComoLida(ocorrencia.id)}
+                                    disabled={botoesBloqueados}
                                     >
                                         Marcar como visto ✓
                                     </button>
@@ -610,7 +658,7 @@ function Alertas() {
             className="card-projeto"
             style={{
                 ...style.containerPrincipal,
-                height: telaAtual === 'listagem' ? '610px' : '440px'
+                height: telaAtual === 'listagem' ? '610px' : '690px'
             }}
         >
             {feedback && (
@@ -647,11 +695,11 @@ function Alertas() {
                         </div>
 
                         <div>
-                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '24px' }}>
+                            <h3 style={{ margin: 0, color: '#1e293b', fontSize: '22px' }}>
                                 {feedback.titulo}
                             </h3>
 
-                            <p style={{ margin: '8px 0 0 0', color: '#475569', fontSize: '19px', lineHeight: 1.45 }}>
+                            <p style={{ margin: '8px 0 0 0', color: '#475569', fontSize: '17px', lineHeight: 1.45 }}>
                                 {feedback.mensagem}
                             </p>
                         </div>
@@ -664,11 +712,11 @@ function Alertas() {
                     <div style={style.modalConfirmacao}>
                         <h2 style={{ margin: 0, color: '#991b1b' }}>Excluir alerta?</h2>
 
-                        <p style={{ color: '#475569', lineHeight: 1.5, fontSize: '18px' }}>
+                        <p style={{ color: '#475569', lineHeight: 1.5 }}>
                             Essa ação vai remover a regra e também os registros disparados por ela, incluindo o histórico de vistos.
                         </p>
 
-                        <p style={{ color: '#1e293b', fontWeight: 'bold', fontSize: '18px' }}>
+                        <p style={{ color: '#1e293b', fontWeight: 'bold' }}>
                             {confirmacaoExclusao.texto}
                         </p>
 
@@ -677,6 +725,7 @@ function Alertas() {
                                 className="button-padrao"
                                 style={style.btnCancelarModal}
                                 onClick={() => setConfirmacaoExclusao(null)}
+                            disabled={botoesBloqueados}
                             >
                                 Cancelar
                             </button>
@@ -685,6 +734,7 @@ function Alertas() {
                                 className="button-padrao"
                                 style={style.btnConfirmarExcluir}
                                 onClick={excluirAlertaConfirmado}
+                            disabled={botoesBloqueados}
                             >
                                 Excluir
                             </button>
@@ -705,6 +755,7 @@ function Alertas() {
                             navigate(-1);
                         }
                     }}
+                disabled={botoesBloqueados}
                 >
                     <img src={icone08} alt="Ícone" style={{ width: '30px', height: '30px' }} />
                 </button>
@@ -724,7 +775,7 @@ function Alertas() {
             {telaAtual === 'listagem' ? (
                 <div style={{ display: 'flex', flexDirection: 'column', height: '540px', width: '100%', gap: '8px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                        <h2 style={{ margin: 0, color: '#333', fontSize: '24px' }}>
+                        <h2 style={{ margin: 0, color: '#333', fontSize: '22px' }}>
                             Regras Salvas
                         </h2>
 
@@ -732,7 +783,7 @@ function Alertas() {
                             className="button-padrao"
                             style={style.btnAdicionar}
                             onClick={abrirTelaCriacao}
-                            disabled={carregandoDados}
+                            disabled={carregandoDados || botoesBloqueados}
                         >
                             {carregandoDados ? 'Carregando dados...' : '➕ Adicionar Novo Alerta'}
                         </button>
@@ -771,29 +822,29 @@ function Alertas() {
                                         onClick={() => setAlertaDetalhado(estaDetalhado ? null : alerta.id)}
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flex: 1 }}>
-                                            <span style={{ fontSize: '26px' }}>
+                                            <span style={{ fontSize: '24px' }}>
                                                 {temOcorrencia ? '🚨' : alerta.ativo ? '🔔' : '🔕'}
                                             </span>
 
                                             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <p style={{ fontSize: '19px', margin: 0, fontWeight: 'bold', color: '#1e3a8a' }}>
+                                                <p style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', color: '#1e3a8a' }}>
                                                     {alerta.texto}
                                                 </p>
 
                                                 {temOcorrencia && quantidadeOcorrencias === 1 && (
-                                                    <span style={{ fontSize: '15px', color: '#dc2626', fontWeight: 'bold', marginTop: '2px' }}>
+                                                    <span style={{ fontSize: '16px', color: '#dc2626', fontWeight: 'bold', marginTop: '2px' }}>
                                                         ⚠️ Responsável: {ocorrenciaUnica.causador} ({ocorrenciaUnica.turma}) — {ocorrenciaUnica.quantidadeFaltasAtual} falta(s). Clique para ver as datas.
                                                     </span>
                                                 )}
 
                                                 {temOcorrencia && quantidadeOcorrencias > 1 && (
-                                                    <span style={{ fontSize: '15px', color: '#dc2626', fontWeight: 'bold', marginTop: '2px' }}>
+                                                    <span style={{ fontSize: '16px', color: '#dc2626', fontWeight: 'bold', marginTop: '2px' }}>
                                                         ⚠️ {quantidadeOcorrencias} estouro(s) detectado(s). Clique para ver responsáveis e datas.
                                                     </span>
                                                 )}
 
                                                 {!temOcorrencia && historicoVistos.length > 0 && (
-                                                    <span style={{ fontSize: '15px', color: '#64748b', fontWeight: 'bold', marginTop: '2px' }}>
+                                                    <span style={{ fontSize: '16px', color: '#64748b', fontWeight: 'bold', marginTop: '2px' }}>
                                                         📚 {historicoVistos.length} registro(s) no histórico de vistos.
                                                     </span>
                                                 )}
@@ -809,6 +860,7 @@ function Alertas() {
                                                     className="button-padrao"
                                                     style={style.btnMarcarLido}
                                                     onClick={() => marcarOcorrenciaComoLida(ocorrenciaUnica.id)}
+                                                disabled={botoesBloqueados}
                                                 >
                                                     Visto ✓
                                                 </button>
@@ -821,6 +873,7 @@ function Alertas() {
                                                     ...style.btnStatusToggle,
                                                     backgroundColor: alerta.ativo ? '#2e7d32' : '#78909c'
                                                 }}
+                                            disabled={botoesBloqueados}
                                             >
                                                 {alerta.ativo ? 'Ligado' : 'Desligado'}
                                             </button>
@@ -829,6 +882,7 @@ function Alertas() {
                                                 className="button-padrao"
                                                 onClick={() => abrirTelaEdicao(alerta)}
                                                 style={style.btnEditarAlerta}
+                                            disabled={botoesBloqueados}
                                             >
                                                 ✏️
                                             </button>
@@ -837,6 +891,7 @@ function Alertas() {
                                                 className="button-padrao"
                                                 onClick={() => solicitarExclusaoAlerta(alerta)}
                                                 style={style.btnDeletarAlerta}
+                                            disabled={botoesBloqueados}
                                             >
                                                 <img src={icone04} alt="Excluir" style={{ width: '18px', height: '18px' }} />
                                             </button>
@@ -856,140 +911,220 @@ function Alertas() {
                     </div>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', height: '370px', width: '100%', gap: '15px', paddingTop: '5px' }}>
-                    <div style={style.linhaConstrutor}>
-                        <div style={style.blocoFluxo}>
-                            <span style={style.textoFixoFrase}>Se...</span>
+                <div style={style.containerCriacaoLogica}>
+                    <div style={style.caixaBlocosLogica}>
+                        <div style={style.cabecalhoBlocosLogica}>
+                            <div>
+                                <h2 style={style.tituloBlocosLogica}>Blocos de Lógica</h2>
+                                <p style={style.subtituloBlocosLogica}>
+                                    Monte o alerta seguindo o fluxo: quem será observado e quando deve disparar para o alerta ser gerado.
+                                </p>
+                            </div>
 
-                            <select
-                                value={tipoAlvo}
-                                onChange={(e) => {
-                                    setTipoAlvo(e.target.value);
-                                    setTurmaSelecionada('');
-                                    setAlunoSelecionado('');
-                                }}
-                                style={style.selectFrase}
+                            <button
+                                className="button-padrao"
+                                style={style.btnAjudaLogica}
+                                onClick={() => setMostrarAjudaLogica((prev) => !prev)}
+                                disabled={botoesBloqueados}
+                                title="Como montar uma lógica de alerta"
                             >
-                                <option value="Aluno">Aluno</option>
-                                <option value="Turma">Turma</option>
-                            </select>
+                                ?
+                            </button>
+                        </div>
 
-                            <select
-                                value={escopo}
-                                onChange={(e) => {
-                                    setEscopo(e.target.value);
-                                    setTurmaSelecionada('');
-                                    setAlunoSelecionado('');
-                                }}
-                                style={style.selectFrase}
-                            >
-                                <option value="Todos">Todos</option>
-                                <option value="Especifico">Especifico</option>
-                            </select>
+                        {mostrarAjudaLogica && (
+                            <div style={style.painelAjudaLogica}>
+                                <strong>Como usar:</strong>
+                                <span>
+                                    Primeiro escolha quem será monitorado. Depois defina a quantidade de faltas e o período. Por fim, confira a frase pronta antes de salvar.
+                                </span>
+                                <span>
+                                    Exemplo: “Se qualquer aluno atingir 3 faltas seguidas, gerar alerta”.
+                                </span>
+                            </div>
+                        )}
 
-                            {escopo === 'Especifico' && tipoAlvo === 'Turma' && (
-                                <select
-                                    value={turmaSelecionada}
-                                    onChange={(e) => setTurmaSelecionada(e.target.value)}
-                                    style={style.selectFrase}
-                                >
-                                    <option value="">Selecione a Turma...</option>
+                        <div style={style.areaBlocosLogica}>
+                            <div style={{ ...style.blocoLogicaVertical, ...style.blocoQuemAtiva }}>
+                                <div style={style.cabecalhoBlocoIndividual}>
+                                    <span style={style.numeroBloco}>1</span>
+                                    <div>
+                                        <h3 style={style.tituloBlocoIndividual}>Se...</h3>
+                                        <p style={style.descricaoBlocoIndividual}>Quem pode vai o alerta?</p>
+                                    </div>
+                                </div>
 
-                                    {listaTurmasBD.map((t) => (
-                                        <option key={t} value={t}>
-                                            {t}
-                                        </option>
-                                    ))}
-                                </select>
-                            )}
-
-                            {escopo === 'Especifico' && tipoAlvo === 'Aluno' && (
-                                <>
+                                <div style={style.linhaCamposLogica}>
                                     <select
-                                        value={turmaSelecionada}
+                                        value={tipoAlvo}
                                         onChange={(e) => {
-                                            setTurmaSelecionada(e.target.value);
+                                            setTipoAlvo(e.target.value);
+                                            setTurmaSelecionada('');
                                             setAlunoSelecionado('');
                                         }}
                                         style={style.selectFrase}
+                                        disabled={botoesBloqueados}
                                     >
-                                        <option value="">Selecione a Turma...</option>
-
-                                        {listaTurmasBD.map((t) => (
-                                            <option key={t} value={t}>
-                                                {t}
-                                            </option>
-                                        ))}
+                                        <option value="Aluno">Aluno</option>
+                                        <option value="Turma">Turma</option>
                                     </select>
 
-                                    {turmaSelecionada && (
-                                        <select
-                                            value={alunoSelecionado}
-                                            onChange={(e) => setAlunoSelecionado(e.target.value)}
-                                            style={style.selectFrase}
-                                        >
-                                            <option value="">Selecione o Aluno...</option>
+                                    <select
+                                        value={escopo}
+                                        onChange={(e) => {
+                                            setEscopo(e.target.value);
+                                            setTurmaSelecionada('');
+                                            setAlunoSelecionado('');
+                                        }}
+                                        style={style.selectFrase}
+                                        disabled={botoesBloqueados}
+                                    >
+                                        <option value="Todos">Todos</option>
+                                        <option value="Especifico">Específico</option>
+                                    </select>
 
-                                            {(mapaAlunosPorTurma[turmaSelecionada] || []).map((a) => (
-                                                <option key={a} value={a}>
-                                                    {a}
+                                    {escopo === 'Especifico' && tipoAlvo === 'Turma' && (
+                                        <select
+                                            value={turmaSelecionada}
+                                            onChange={(e) => setTurmaSelecionada(e.target.value)}
+                                            style={style.selectFrase}
+                                            disabled={botoesBloqueados}
+                                        >
+                                            <option value="">Selecione a Turma...</option>
+
+                                            {listaTurmasBD.map((t) => (
+                                                <option key={t} value={t}>
+                                                    {t}
                                                 </option>
                                             ))}
                                         </select>
                                     )}
-                                </>
-                            )}
+
+                                    {escopo === 'Especifico' && tipoAlvo === 'Aluno' && (
+                                        <>
+                                            <select
+                                                value={turmaSelecionada}
+                                                onChange={(e) => {
+                                                    setTurmaSelecionada(e.target.value);
+                                                    setAlunoSelecionado('');
+                                                }}
+                                                style={style.selectFrase}
+                                                disabled={botoesBloqueados}
+                                            >
+                                                <option value="">Selecione a Turma...</option>
+
+                                                {listaTurmasBD.map((t) => (
+                                                    <option key={t} value={t}>
+                                                        {t}
+                                                    </option>
+                                                ))}
+                                            </select>
+
+                                            {turmaSelecionada && (
+                                                <select
+                                                    value={alunoSelecionado}
+                                                    onChange={(e) => setAlunoSelecionado(e.target.value)}
+                                                    style={style.selectFrase}
+                                                    disabled={botoesBloqueados}
+                                                >
+                                                    <option value="">Selecione o Aluno...</option>
+
+                                                    {(mapaAlunosPorTurma[turmaSelecionada] || []).map((a) => (
+                                                        <option key={a} value={a}>
+                                                            {a}
+                                                        </option>
+                                                    ))}
+                                                </select>
+                                            )}
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div style={style.flechaFluxoVertical}>↓</div>
+
+                            <div style={{ ...style.blocoLogicaVertical, ...style.blocoMotivoAtiva }}>
+                                <div style={style.cabecalhoBlocoIndividual}>
+                                    <span style={style.numeroBloco}>2</span>
+                                    <div>
+                                        <h3 style={style.tituloBlocoIndividual}>Atingir...</h3>
+                                        <p style={style.descricaoBlocoIndividual}>Defina o limite de faltas que dispara o alerta</p>
+                                    </div>
+                                </div>
+
+                                <div style={style.linhaCamposLogica}>
+                                    <span style={style.textoFixoFrase}>número de faltas: </span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        placeholder="Ex: 3"
+                                        value={quantidadeFaltas}
+                                        onChange={(e) => setQuantidadeFaltas(e.target.value)}
+                                        style={style.inputNumeroFrase}
+                                        disabled={botoesBloqueados}
+                                    />
+
+                                    <span style={style.textoFixoFrase}>período: </span>
+
+                                    <select
+                                        value={tipoPeriodo}
+                                        onChange={(e) => setTipoPeriodo(e.target.value)}
+                                        style={style.selectFrase}
+                                        disabled={botoesBloqueados}
+                                    >
+                                        <option value="Seguidas">Seguidas</option>
+                                        <option value="Mensal">Mensal</option>
+                                        <option value="Anual">Anual</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div style={style.flechaFluxoVertical}>↓</div>
+
+                            <div style={{ ...style.blocoLogicaVertical, ...style.blocoGerarAlerta }}>
+                                <div style={style.cabecalhoBlocoIndividual}>
+                                    <span style={style.numeroBloco}>3</span>
+                                    <div>
+                                        <h3 style={style.tituloBlocoIndividual}>Então...</h3>
+                                    </div>
+                                </div>
+
+                                <div style={style.resultadoAlertaBox}>
+                                    <span style={style.iconeResultadoAlerta}>🔔</span>
+                                    <div>
+                                        <strong>Ativar alerta automaticamente</strong>
+                                        <p>O alerta aparecerá no topo da lista e também será sinalizado na tela inicial.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-
-                        <span style={style.flechaIndicativa}>➔</span>
-
-                        <div style={style.blocoFluxo2}>
-                            <span style={style.textoFixoFrase}>atingir</span>
-
-                            <input
-                                type="number"
-                                min="1"
-                                placeholder="Ex: 30"
-                                value={quantidadeFaltas}
-                                onChange={(e) => setQuantidadeFaltas(e.target.value)}
-                                style={style.inputNumeroFrase}
-                            />
-
-                            <span style={style.textoFixoFrase}>de faltas</span>
-
-                            <select
-                                value={tipoPeriodo}
-                                onChange={(e) => setTipoPeriodo(e.target.value)}
-                                style={style.selectFrase}
-                            >
-                                <option value="Seguidas">Seguidas</option>
-                                <option value="Mensal">Mensal</option>
-                                <option value="Anual">Anual</option>
-                            </select>
-                        </div>
-
-                        <span style={style.flechaIndicativa}>➔</span>
-
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                            <span style={style.tagGerarAlerta}>gerar alerta 🔔</span>
-                        </div>
+                        <button
+                            className="button-padrao"
+                            style={style.btnLimparSelecoes}
+                            onClick={limparSelecoesLogica}
+                            disabled={botoesBloqueados}
+                        >
+                            Limpar seleções
+                        </button>
                     </div>
 
-                    <div style={style.containerPreview}>
-                        <h2 style={{ margin: '0 0 5px 0', color: '#666', fontSize: '19px' }}>
-                            Visualização do Alerta:
-                        </h2>
+                    <div style={style.containerPreviewNovo}>
+                        <div>
+                            <h2 style={style.tituloPreviewNovo}>Visualização do Alerta</h2>
+                            <p style={style.subtituloPreviewNovo}>Confira se a lógica ficou do jeito esperado antes de salvar.</p>
+                        </div>
 
-                        <p style={style.styleTextoPreview}>
+                        <p style={style.styleTextoPreviewNovo}>
                             {gerarTextoLogica()}
                         </p>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px', marginTop: 'auto' }}>
+                    <div style={style.areaAcoesCriacao}>
                         <button
                             className="button-padrao"
                             style={style.btnSalvar}
                             onClick={salvarAlerta}
+                            disabled={botoesBloqueados}
                         >
                             {modoEdicao ? 'Salvar Alterações' : 'Salvar Alerta'}
                         </button>
@@ -1001,6 +1136,7 @@ function Alertas() {
                                 limparFormulario();
                                 setTelaAtual('listagem');
                             }}
+                            disabled={botoesBloqueados}
                         >
                             Cancelar
                         </button>
@@ -1013,7 +1149,7 @@ function Alertas() {
 
 const style = {
     titleStyle: {
-        fontSize: '30px',
+        fontSize: '28px',
         fontWeight: '700',
         color: '#1e293b',
         margin: '0 0 4px 0'
@@ -1051,7 +1187,7 @@ const style = {
         padding: '12px 20px',
         borderRadius: '10px',
         border: 'none',
-        fontSize: '16px',
+        fontSize: '14px',
         fontWeight: 'bold',
         cursor: 'pointer',
         height: '30px',
@@ -1060,7 +1196,7 @@ const style = {
     },
 
     textoFixoFrase: {
-        fontSize: '19px',
+        fontSize: '17px',
         fontWeight: 'bold',
         color: '#1e3a8a',
         backgroundColor: '#ffffff',
@@ -1077,7 +1213,7 @@ const style = {
         padding: '8px 12px',
         borderRadius: '8px',
         border: '2px solid #e0d6ff',
-        fontSize: '19px',
+        fontSize: '17px',
         fontFamily: 'inherit',
         fontWeight: 'bold',
         color: '#1e3a8a',
@@ -1090,7 +1226,7 @@ const style = {
         padding: '8px 10px',
         borderRadius: '8px',
         border: '2px solid #e0d6ff',
-        fontSize: '19px',
+        fontSize: '17px',
         textAlign: 'center',
         fontWeight: 'bold',
         color: '#1e3a8a'
@@ -1104,7 +1240,7 @@ const style = {
     },
 
     styleTextoPreview: {
-        fontSize: '22px',
+        fontSize: '20px',
         fontWeight: 'bold',
         color: '#1e3a8a',
         margin: 0
@@ -1116,7 +1252,7 @@ const style = {
         padding: '12px 25px',
         borderRadius: '10px',
         border: 'none',
-        fontSize: '18px',
+        fontSize: '16px',
         fontWeight: 'bold',
         cursor: 'pointer'
     },
@@ -1127,13 +1263,13 @@ const style = {
         padding: '12px 25px',
         borderRadius: '10px',
         border: 'none',
-        fontSize: '18px',
+        fontSize: '16px',
         fontWeight: 'bold',
         cursor: 'pointer'
     },
 
     tagGerarAlerta: {
-        fontSize: '20px',
+        fontSize: '18px',
         fontWeight: 'bold',
         color: '#1e3a8a',
         backgroundColor: '#fffdfd',
@@ -1181,7 +1317,7 @@ const style = {
     },
 
     flechaIndicativa: {
-        fontSize: '20px',
+        fontSize: '18px',
         color: '#a0aec0',
         fontWeight: 'bold',
         userSelect: 'none',
@@ -1217,7 +1353,7 @@ const style = {
         padding: '6px 16px',
         borderRadius: '20px',
         fontWeight: 'bold',
-        fontSize: '15px',
+        fontSize: '13px',
         cursor: 'pointer',
         boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
         transition: 'all 0.2s ease-in-out'
@@ -1233,7 +1369,7 @@ const style = {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: '16px',
+        fontSize: '15px',
         boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
         transition: 'all 0.2s ease'
     },
@@ -1259,7 +1395,7 @@ const style = {
         padding: '6px 12px',
         borderRadius: '6px',
         fontWeight: '600',
-        fontSize: '15px',
+        fontSize: '12px',
         cursor: 'pointer',
         transition: 'background 0.2s'
     },
@@ -1284,14 +1420,15 @@ const style = {
 
     tituloDetalhes: {
         margin: 0,
-        fontSize: '20px',
+        fontSize: '22px',
         color: '#1e293b'
     },
 
     subtituloDetalhes: {
         margin: '4px 0 0 0',
         color: '#475569',
-        fontSize: '16px'
+        fontSize: '18px',
+        lineHeight: 1.5
     },
 
     btnFecharDetalhes: {
@@ -1317,7 +1454,7 @@ const style = {
     tituloBlocoDetalhe: {
         margin: 0,
         color: '#991b1b',
-        fontSize: '16px'
+        fontSize: '20px'
     },
 
     cardOcorrenciaDetalhe: {
@@ -1343,20 +1480,21 @@ const style = {
         color: '#991b1b',
         padding: '4px 8px',
         borderRadius: '999px',
-        fontSize: '15px',
+        fontSize: '16px',
         fontWeight: 'bold'
     },
 
     textoInfoOcorrencia: {
         margin: 0,
         color: '#475569',
-        fontSize: '15px'
+        fontSize: '17px',
+        lineHeight: 1.5
     },
 
     tituloDatas: {
         margin: '4px 0 0 0',
         color: '#334155',
-        fontSize: '16px'
+        fontSize: '18px'
     },
 
     listaDatas: {
@@ -1373,7 +1511,8 @@ const style = {
         display: 'flex',
         flexDirection: 'column',
         gap: '2px',
-        fontSize: '15px'
+        fontSize: '17px',
+        lineHeight: 1.45
     },
 
     rodapeOcorrencia: {
@@ -1398,69 +1537,67 @@ const style = {
     textoHistoricoPrincipal: {
         margin: 0,
         color: '#1e293b',
-        fontSize: '16px'
+        fontSize: '20px',
+        lineHeight: 1.55
     },
 
     textoDescricaoHistorico: {
         margin: 0,
         color: '#475569',
-        fontSize: '15px',
-        lineHeight: 1.45
+        fontSize: '18px',
+        lineHeight: 1.6
     },
 
     detailsHistorico: {
         marginTop: '4px',
         color: '#334155',
-        fontSize: '15px',
-        cursor: 'pointer'
+        fontSize: '18px',
+        cursor: 'pointer',
+        lineHeight: 1.5
     },
 
     textoVazioDetalhes: {
         margin: 0,
         color: '#64748b',
-        fontSize: '16px',
+        fontSize: '17px',
         backgroundColor: '#ffffff',
         border: '1px solid #e2e8f0',
         borderRadius: '8px',
-        padding: '10px'
+        padding: '10px',
+        lineHeight: 1.5
     },
 
     feedbackOverlay: {
         position: 'absolute',
-        inset: 0,
+        top: '18px',
+        right: '18px',
         zIndex: 30,
         animation: 'fadeIn 0.25s ease',
-        backgroundColor: 'rgba(255, 255, 255, 0.72)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderRadius: '12px',
-        pointerEvents: 'all'
+        pointerEvents: 'none'
     },
 
     feedbackCard: {
         backgroundColor: '#ffffff',
         border: '2px solid #bbf7d0',
-        borderRadius: '18px',
-        padding: '24px 28px',
-        boxShadow: '0 18px 45px rgba(15, 23, 42, 0.22)',
+        borderRadius: '16px',
+        padding: '18px 22px',
+        boxShadow: '0 14px 35px rgba(15, 23, 42, 0.18)',
         display: 'flex',
         alignItems: 'center',
-        gap: '16px',
-        minWidth: '420px',
-        maxWidth: '560px'
+        gap: '14px',
+        minWidth: '360px',
+        maxWidth: '500px'
     },
 
     feedbackIcone: {
-        width: '58px',
-        height: '58px',
+        width: '50px',
+        height: '50px',
         borderRadius: '50%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         fontWeight: 'bold',
-        fontSize: '30px',
+        fontSize: '24px',
         flexShrink: 0
     },
 
@@ -1505,6 +1642,244 @@ const style = {
         borderRadius: '8px',
         cursor: 'pointer',
         fontWeight: 'bold'
+    },
+
+    containerCriacaoLogica: {
+        display: 'flex',
+        flexDirection: 'column',
+        height: '620px',
+        width: '100%',
+        gap: '14px',
+        paddingTop: '5px',
+        overflowY: 'auto',
+        paddingRight: '6px'
+    },
+
+    btnLimparSelecoes: {
+        backgroundColor: '#f8fafc',
+        color: '#334155',
+        border: '1px solid #cbd5e1',
+        borderRadius: '10px',
+        padding: '9px 14px',
+        fontWeight: '700',
+        cursor: 'pointer',
+        whiteSpace: 'nowrap'
+    },
+
+    caixaBlocosLogica: {
+        backgroundColor: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '18px',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+        boxShadow: '0 8px 20px rgba(15, 23, 42, 0.06)'
+    },
+
+    cabecalhoBlocosLogica: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        gap: '14px',
+        borderBottom: '1px solid #e2e8f0',
+        paddingBottom: '12px'
+    },
+
+    tituloBlocosLogica: {
+        margin: 0,
+        color: '#1e293b',
+        fontSize: '24px',
+        fontWeight: '800'
+    },
+
+    subtituloBlocosLogica: {
+        margin: '4px 0 0 0',
+        color: '#64748b',
+        fontSize: '18px',
+        lineHeight: 1.45
+    },
+
+    btnAjudaLogica: {
+        width: '30px',
+        height: '30px',
+        borderRadius: '50%',
+        border: 'none',
+        backgroundColor: '#1e3a8a',
+        color: '#ffffff',
+        fontWeight: '900',
+        fontSize: '18px',
+        cursor: 'pointer',
+        boxShadow: '0 6px 12px rgba(30, 58, 138, 0.22)',
+        flexShrink: 0
+    },
+
+    painelAjudaLogica: {
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
+        backgroundColor: '#fefce8',
+        border: '1px solid #fde68a',
+        borderLeft: '5px solid #f59e0b',
+        borderRadius: '12px',
+        padding: '12px 14px',
+        color: '#78350f',
+        fontSize: '15px',
+        lineHeight: 1.45
+    },
+
+    areaBlocosLogica: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+        gap: '6px'
+    },
+
+    blocoLogicaVertical: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '16px',
+        padding: '14px',
+        borderRadius: '16px',
+        border: '1px solid rgba(15, 23, 42, 0.08)',
+        boxShadow: '0 4px 10px rgba(15, 23, 42, 0.04)'
+    },
+
+    blocoQuemAtiva: {
+        backgroundColor: '#fff7ed'
+    },
+
+    blocoMotivoAtiva: {
+        backgroundColor: '#eef2ff'
+    },
+
+    blocoGerarAlerta: {
+        backgroundColor: '#fef2f2'
+    },
+
+    cabecalhoBlocoIndividual: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        minWidth: '330px'
+    },
+
+    numeroBloco: {
+        width: '36px',
+        height: '36px',
+        borderRadius: '50%',
+        backgroundColor: '#1e3a8a',
+        color: '#ffffff',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontWeight: '900',
+        fontSize: '17px',
+        flexShrink: 0
+    },
+
+    tituloBlocoIndividual: {
+        margin: 0,
+        color: '#1e293b',
+        fontSize: '20px',
+        fontWeight: '800'
+    },
+
+    descricaoBlocoIndividual: {
+        margin: '2px 0 0 0',
+        color: '#64748b',
+        fontSize: '17px'
+    },
+
+    linhaCamposLogica: {
+        display: 'flex',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        flexWrap: 'wrap',
+        gap: '10px',
+        flex: 1
+    },
+
+    flechaFluxoVertical: {
+        alignSelf: 'center',
+        width: '38px',
+        height: '38px',
+        borderRadius: '50%',
+        backgroundColor: '#e0e7ff',
+        color: '#1e3a8a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        fontWeight: '900',
+        margin: '-2px 0'
+    },
+
+    resultadoAlertaBox: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        backgroundColor: '#ffffff',
+        border: '1px solid #fecaca',
+        borderRadius: '14px',
+        padding: '12px 14px',
+        color: '#991b1b',
+        maxWidth: '520px',
+        flex: 1
+    },
+
+    iconeResultadoAlerta: {
+        width: '44px',
+        height: '44px',
+        borderRadius: '50%',
+        backgroundColor: '#fee2e2',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        flexShrink: 0
+    },
+
+    containerPreviewNovo: {
+        backgroundColor: '#eef2ff',
+        border: '1px solid #c7d2fe',
+        borderLeft: '6px solid #1e3a8a',
+        borderRadius: '16px',
+        padding: '16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px'
+    },
+
+    tituloPreviewNovo: {
+        margin: 0,
+        color: '#1e293b',
+        fontSize: '20px',
+        fontWeight: '800'
+    },
+
+    subtituloPreviewNovo: {
+        margin: '3px 0 0 0',
+        color: '#64748b',
+        fontSize: '18px'
+    },
+
+    styleTextoPreviewNovo: {
+        margin: 0,
+        color: '#1e3a8a',
+        fontSize: '22px',
+        fontWeight: '800',
+        lineHeight: 1.35
+    },
+
+    areaAcoesCriacao: {
+        display: 'flex',
+        gap: '10px',
+        justifyContent: 'flex-end',
+        paddingBottom: '4px'
     }
 };
 

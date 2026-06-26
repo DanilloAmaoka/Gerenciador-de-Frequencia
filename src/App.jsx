@@ -7,60 +7,72 @@ import CadastrarFaltas from './pages/CadastrarFaltas';
 import Metricas from './pages/Metricas';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
+import fundo from './assets/fundoSite.jpg';
+
 function AppRoutes() {
   return (
-    <div className='fundo-geral'>
+    <div
+      className="fundo-geral"
+      style={{
+        backgroundImage: `url(${fundo})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '100vh',
+        width: '100%'
+      }}
+    >
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />
-            <Route 
-              path="/inicio" 
-              element={
-                <ProtectedRoute>
-                  <Inicio />
-                </ProtectedRoute>
-              } 
-            />
 
-            <Route 
-              path="/turmas" 
-              element={
-                <ProtectedRoute>
-                  <Turmas />
-                </ProtectedRoute>
-              } 
-            />
+          <Route
+            path="/inicio"
+            element={
+              <ProtectedRoute>
+                <Inicio />
+              </ProtectedRoute>
+            }
+          />
 
-            <Route 
-              path="/cadastrarfaltas" 
-              element={
-                <ProtectedRoute>
-                  <CadastrarFaltas />
-                </ProtectedRoute>
-              } 
-            />
+          <Route
+            path="/turmas"
+            element={
+              <ProtectedRoute>
+                <Turmas />
+              </ProtectedRoute>
+            }
+          />
 
-             <Route 
-              path="/metricas" 
-              element={
-                <ProtectedRoute>
-                  <Metricas />
-                </ProtectedRoute>
-              } 
-            />
+          <Route
+            path="/cadastrarfaltas"
+            element={
+              <ProtectedRoute>
+                <CadastrarFaltas />
+              </ProtectedRoute>
+            }
+          />
 
-            <Route 
-              path="/alertas" 
-              element={
-                <ProtectedRoute>
-                  <Alertas />
-                </ProtectedRoute>
-              } 
-            />
+          <Route
+            path="/metricas"
+            element={
+              <ProtectedRoute>
+                <Metricas />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/alertas"
+            element={
+              <ProtectedRoute>
+                <Alertas />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </Router>
     </div>
-    
   );
 }
 

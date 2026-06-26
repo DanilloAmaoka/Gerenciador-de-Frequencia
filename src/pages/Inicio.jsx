@@ -134,7 +134,7 @@ function Inicio() {
                     </div>
 
                     <span style={buttonTextStyle}>
-                        Gerenciar Turmas Registradas
+                        Gerenciar Turmas/Alunos
                     </span>
                 </button>
 
