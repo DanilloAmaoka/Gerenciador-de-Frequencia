@@ -6,10 +6,11 @@ import Alertas from './pages/Alertas';
 import CadastrarFaltas from './pages/CadastrarFaltas';
 import Metricas from './pages/Metricas';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import fundo from './assets/fundo.jpg';
 
 function AppRoutes() {
   return (
-    <div className='fundo-geral'>
+    <div className='fundo-geral' style={{backgroundImage: `url(${fundo})`}}>
       <Router>
         <Routes>
           <Route path="/" element={<Login />} />

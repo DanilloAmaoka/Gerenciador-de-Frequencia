@@ -1,0 +1,362 @@
+import { db } from '../firebase/config';
+
+import {
+    collection,
+    getDocs,
+    query,
+    where,
+    doc,
+    updateDoc,
+    addDoc
+} from 'firebase/firestore';
+
+const obterNomeAlunoFalta = (falta) => {
+    return typeof falta === 'object' ? falta.nome : falta;
+};
+
+const obterTipoFalta = (falta) => {
+    return typeof falta === 'object' ? falta.tipo : 'regular';
+};
+
+const obterFaltasRegularesDaChamada = (chamada) => {
+    const listaFaltas = chamada.faltas || [];
+
+    return listaFaltas
+        .filter(falta => obterTipoFalta(falta) !== 'justificada')
+        .map(falta => obterNomeAlunoFalta(falta))
+        .filter(Boolean);
+};
+
+const calcularSequenciaAluno = (nomeAluno, chamadasOrdenadas) => {
+    let quantidade = 0;
+    let inicio = null;
+    let fim = null;
+
+    chamadasOrdenadas.forEach(chamada => {
+        const nomesFaltantes = obterFaltasRegularesDaChamada(chamada);
+
+        if (nomesFaltantes.includes(nomeAluno)) {
+            if (quantidade === 0) {
+                inicio = chamada.data;
+            }
+
+            quantidade += 1;
+            fim = chamada.data;
+        } else {
+            quantidade = 0;
+            inicio = null;
+            fim = null;
+        }
+    });
+
+    return {
+        quantidade,
+        inicio,
+        fim
+    };
+};
+
+const calcularSequenciaTurma = (chamadasOrdenadas) => {
+    let quantidade = 0;
+    let inicio = null;
+    let fim = null;
+
+    chamadasOrdenadas.forEach(chamada => {
+        const nomesFaltantes = obterFaltasRegularesDaChamada(chamada);
+        const turmaTeveFalta = nomesFaltantes.length > 0;
+
+        if (turmaTeveFalta) {
+            if (quantidade === 0) {
+                inicio = chamada.data;
+            }
+
+            quantidade += 1;
+            fim = chamada.data;
+        } else {
+            quantidade = 0;
+            inicio = null;
+            fim = null;
+        }
+    });
+
+    return {
+        quantidade,
+        inicio,
+        fim
+    };
+};
+
+const registrarOuAtualizarAlerta = async ({
+    idRegra,
+    textoNotificacao,
+    causador,
+    turma,
+    quantidadeFaltasAtual,
+    periodoReferencia
+}) => {
+    const alertasRef = collection(db, "alertas_disparados");
+
+    const qExistente = query(
+        alertasRef,
+        where("id_regra", "==", idRegra),
+        where("causador", "==", causador)
+    );
+
+    const snapExistente = await getDocs(qExistente);
+
+    const ocorrenciasMesmoPeriodo = snapExistente.docs
+        .map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+        }))
+        .filter(item => item.periodoReferencia === periodoReferencia);
+
+    const ocorrenciaAberta = ocorrenciasMesmoPeriodo.find(item => item.lido === false);
+
+    if (ocorrenciaAberta) {
+        const quantidadeAnterior = ocorrenciaAberta.quantidadeFaltasAtual || 0;
+
+        if (quantidadeFaltasAtual > quantidadeAnterior) {
+            await updateDoc(doc(db, "alertas_disparados", ocorrenciaAberta.id), {
+                texto_notificacao: textoNotificacao,
+                quantidadeFaltasAtual,
+                dataAtualizacao: new Date().toISOString()
+            });
+        }
+
+        return;
+    }
+
+    const maiorQuantidadeJaRegistrada = ocorrenciasMesmoPeriodo.reduce((maior, item) => {
+        const qtd = item.quantidadeFaltasAtual || 0;
+        return qtd > maior ? qtd : maior;
+    }, 0);
+
+    if (quantidadeFaltasAtual <= maiorQuantidadeJaRegistrada) {
+        return;
+    }
+
+    await addDoc(alertasRef, {
+        id_regra: idRegra,
+        texto_notificacao: textoNotificacao,
+        causador,
+        turma,
+        quantidadeFaltasAtual,
+        periodoReferencia,
+        lido: false,
+        dataDisparo: new Date().toISOString()
+    });
+};
+
+export const executarMotorAlertasDaTurma = async ({
+    idTurma,
+    nomeTurma,
+    alunos = [],
+    dataReferencia = new Date().toISOString().split('T')[0]
+}) => {
+    const alertasConfigRef = collection(db, "config_alertas");
+
+    const qAlertas = query(
+        alertasConfigRef,
+        where("ativo", "==", true)
+    );
+
+    const alertasSnapshot = await getDocs(qAlertas);
+
+    if (alertasSnapshot.empty) {
+        return;
+    }
+
+    const chamadasRef = collection(db, "turmas", idTurma, "chamadas");
+    const chamadasSnapshot = await getDocs(chamadasRef);
+
+    const chamadasOrdenadas = chamadasSnapshot.docs
+        .map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+        }))
+        .filter(chamada => chamada.data)
+        .sort((a, b) => a.data.localeCompare(b.data));
+
+    const mesReferencia = dataReferencia.substring(0, 7);
+    const anoReferencia = dataReferencia.substring(0, 4);
+
+    const metricasPorAluno = {};
+    let totalMensalTurma = 0;
+    let totalAnualTurma = 0;
+
+    alunos.forEach(nomeAluno => {
+        metricasPorAluno[nomeAluno] = {
+            mensal: 0,
+            anual: 0,
+            seguidas: 0,
+            inicioSequencia: null,
+            fimSequencia: null
+        };
+    });
+
+    chamadasOrdenadas.forEach(chamada => {
+        const nomesFaltantes = obterFaltasRegularesDaChamada(chamada);
+
+        nomesFaltantes.forEach(nomeAluno => {
+            if (!metricasPorAluno[nomeAluno]) {
+                metricasPorAluno[nomeAluno] = {
+                    mensal: 0,
+                    anual: 0,
+                    seguidas: 0,
+                    inicioSequencia: null,
+                    fimSequencia: null
+                };
+            }
+
+            if (chamada.data.startsWith(mesReferencia)) {
+                metricasPorAluno[nomeAluno].mensal += 1;
+                totalMensalTurma += 1;
+            }
+
+            if (chamada.data.startsWith(anoReferencia)) {
+                metricasPorAluno[nomeAluno].anual += 1;
+                totalAnualTurma += 1;
+            }
+        });
+    });
+
+    Object.keys(metricasPorAluno).forEach(nomeAluno => {
+        const sequencia = calcularSequenciaAluno(nomeAluno, chamadasOrdenadas);
+
+        metricasPorAluno[nomeAluno].seguidas = sequencia.quantidade;
+        metricasPorAluno[nomeAluno].inicioSequencia = sequencia.inicio;
+        metricasPorAluno[nomeAluno].fimSequencia = sequencia.fim;
+    });
+
+    const sequenciaTurma = calcularSequenciaTurma(chamadasOrdenadas);
+
+    for (const docRegra of alertasSnapshot.docs) {
+        const regra = docRegra.data();
+        const idRegra = docRegra.id;
+        const limite = Number(regra.quantidadeFaltas);
+        const periodo = regra.tipoPeriodo;
+
+        if (!limite || limite < 1) {
+            continue;
+        }
+
+        if (regra.tipoAlvo === "Turma") {
+            const correspondeAoEscopo =
+                regra.escopo === "Todos" ||
+                (
+                    regra.escopo === "Especifico" &&
+                    regra.turmaAlvo === nomeTurma
+                );
+
+            if (!correspondeAoEscopo) {
+                continue;
+            }
+
+            let totalRegistrado = 0;
+            let periodoReferencia = "";
+            let textoNotificacao = "";
+
+            if (periodo === "Mensal") {
+                totalRegistrado = totalMensalTurma;
+                periodoReferencia = `mensal:${mesReferencia}`;
+                textoNotificacao = `A turma atingiu o limite de faltas mensais!`;
+            }
+
+            if (periodo === "Anual") {
+                totalRegistrado = totalAnualTurma;
+                periodoReferencia = `anual:${anoReferencia}`;
+                textoNotificacao = `A turma atingiu o limite de faltas anuais!`;
+            }
+
+            if (periodo === "Seguidas") {
+                totalRegistrado = sequenciaTurma.quantidade;
+                periodoReferencia = `seguidas:${sequenciaTurma.inicio || "sem-sequencia"}`;
+                textoNotificacao = `A turma atingiu o limite de chamadas seguidas com faltas!`;
+            }
+
+            if (totalRegistrado >= limite) {
+                await registrarOuAtualizarAlerta({
+                    idRegra,
+                    textoNotificacao,
+                    causador: nomeTurma,
+                    turma: nomeTurma,
+                    quantidadeFaltasAtual: totalRegistrado,
+                    periodoReferencia
+                });
+            }
+        }
+
+        if (regra.tipoAlvo === "Aluno") {
+            for (const nomeAluno of Object.keys(metricasPorAluno)) {
+                const metricas = metricasPorAluno[nomeAluno];
+
+                const correspondeAoEscopo =
+                    regra.escopo === "Todos" ||
+                    (
+                        regra.escopo === "Especifico" &&
+                        regra.turmaAlvo === nomeTurma &&
+                        regra.alunoAlvo === nomeAluno
+                    );
+
+                if (!correspondeAoEscopo) {
+                    continue;
+                }
+
+                let totalRegistrado = 0;
+                let periodoReferencia = "";
+                let textoNotificacao = "";
+
+                if (periodo === "Mensal") {
+                    totalRegistrado = metricas.mensal;
+                    periodoReferencia = `mensal:${mesReferencia}`;
+                    textoNotificacao = `Limite de faltas mensais atingido!`;
+                }
+
+                if (periodo === "Anual") {
+                    totalRegistrado = metricas.anual;
+                    periodoReferencia = `anual:${anoReferencia}`;
+                    textoNotificacao = `Limite de faltas anuais atingido!`;
+                }
+
+                if (periodo === "Seguidas") {
+                    totalRegistrado = metricas.seguidas;
+                    periodoReferencia = `seguidas:${metricas.inicioSequencia || "sem-sequencia"}`;
+                    textoNotificacao = `Limite de faltas seguidas atingido!`;
+                }
+
+                if (totalRegistrado >= limite) {
+                    await registrarOuAtualizarAlerta({
+                        idRegra,
+                        textoNotificacao,
+                        causador: nomeAluno,
+                        turma: nomeTurma,
+                        quantidadeFaltasAtual: totalRegistrado,
+                        periodoReferencia
+                    });
+                }
+            }
+        }
+    }
+};
+
+export const executarMotorAlertasGeral = async ({
+    dataReferencia = new Date().toISOString().split('T')[0]
+} = {}) => {
+    const turmasSnapshot = await getDocs(collection(db, "turmas"));
+
+    for (const turmaDoc of turmasSnapshot.docs) {
+        const dadosTurma = turmaDoc.data();
+
+        if (!dadosTurma.nome) {
+            continue;
+        }
+
+        await executarMotorAlertasDaTurma({
+            idTurma: turmaDoc.id,
+            nomeTurma: dadosTurma.nome,
+            alunos: dadosTurma.alunos || [],
+            dataReferencia
+        });
+    }
+};
